@@ -50,6 +50,8 @@ and things that don't work as they're intended, please let me know
 Currently Fission only has basic solid sketch, but surface modeling, and others
 are in the works.
 
+Has only been tried on linux mint, if other distros don't work please lmk
+
 ### Documentation
 
 basically click create sketch, select a plane, draw it, and extrude.
