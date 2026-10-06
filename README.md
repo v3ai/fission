@@ -52,8 +52,13 @@ are in the works.
 
 Has only been tried on linux mint, if other distros don't work please lmk
 
+fission uses a bunch of open source libraries all basically bundled together
+with python.
+
 ### Documentation
 
 basically click create sketch, select a plane, draw it, and extrude.
 if you want to take away material in the size of a sketch put a negative
 number in while extruding.
+
+
