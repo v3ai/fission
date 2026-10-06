@@ -1,0 +1,4 @@
+cadquery-ocp
+PySide6
+PyOpenGL
+numpy
