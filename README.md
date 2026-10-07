@@ -6,7 +6,9 @@
 
 ## How to run
 
-Currently you have to run linux if you wanna use Fission
+Currently only linux versions have been tested but there's windows and mac
+options available up now if you'd like to try them out, however linux will be 
+the primary focus
 
 ### Running appimage
 
