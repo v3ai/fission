@@ -194,7 +194,7 @@ cat > "$APPDIR/fission.desktop" <<EOF
 Type=Application
 Name=$APP
 GenericName=CAD
-Comment=Free parametric 3D CAD
+Comment=Free parametric 3D CAD in the style of Fusion 360
 Exec=$APP %f
 Icon=fission
 Categories=Graphics;Engineering;3DGraphics;

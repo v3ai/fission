@@ -8,7 +8,7 @@ Click the regions you want (e.g. the ring between two circles), then Extrude (E)
 Modify: Fillet (F), Chamfer (H), Move (M), Circular pattern (P), Gear (G), Thread (T), Drawing sheet (D).
 Undo / redo: Ctrl+Z / Ctrl+Y, or click a step in the timeline at the bottom.
 Viewport: wheel = zoom, middle-drag = pan, shift+middle-drag (or right-drag) = orbit, Ctrl while drawing = no snap.
-Run:  pip install -r requirements.txt  &&  python fission6.py
+Run:  pip install -r requirements.txt  &&  python fission.py
 """
 import copy, datetime, json, math, os, re, sys, tempfile, time, traceback, zipfile
 import numpy as np
@@ -10367,11 +10367,46 @@ def volume_area(f1, f2):
     except Exception:
         return 0.0
 
+def selftest(out):
+    """Packaged-build check (Fission --selftest FILE): exercise the kernel, mesher, an export and the main window,
+    write a report to FILE ending in SELFTEST OK / SELFTEST FAILED, and return the exit code."""
+    lines = [f"Fission selftest  python {sys.version.split()[0]}  {sys.platform}"]
+    ok = False
+    try:
+        import PySide6, OCP
+        lines.append(f"PySide6 {PySide6.__version__}  numpy {np.__version__}  OCP {getattr(OCP, '__version__', '?')}")
+        cyl = BRepPrimAPI_MakeCylinder(10, 20).Shape()
+        fil = BRepFilletAPI_MakeFillet(cyl)
+        for e in subshapes(cyl, TopAbs_EDGE):
+            if not degenerated(e): fil.Add(2.0, to_edge(e))
+        solid = boolean(fil.Shape(), BRepPrimAPI_MakeCylinder(4, 30).Shape(), "cut")
+        b = Body(solid)
+        p = GProp_GProps(); volume_props(solid, p)
+        lines.append(f"kernel: filleted tube, volume {p.Mass():.1f}, {len(b.tv)} triangles, {len(b.edges)} edges")
+        if not len(b.tv) or p.Mass() <= 0: raise RuntimeError("the kernel produced an empty solid")
+        with tempfile.TemporaryDirectory() as d:
+            write_obj(os.path.join(d, "t.obj"), [b])
+            lines.append(f"export: OBJ {os.path.getsize(os.path.join(d, 't.obj'))} bytes")
+        w = Fission(); w.show()
+        t = time.time()
+        while time.time() - t < 1.5: W.QApplication.processEvents(); time.sleep(0.02)
+        w.vp.makeCurrent()
+        gl = glGetString(GL_VERSION); vendor = glGetString(GL_RENDERER)
+        lines.append(f"window: {w.width()}x{w.height()}  OpenGL {gl.decode() if gl else '?'}  ({vendor.decode() if vendor else '?'})")
+        w.vp.doneCurrent(); w.hide()
+        ok = True
+    except Exception:
+        lines.append(traceback.format_exc())
+    lines.append("SELFTEST OK" if ok else "SELFTEST FAILED")
+    with open(out, "w", encoding="utf-8") as f: f.write("\n".join(lines) + "\n")
+    return 0 if ok else 1
+
 if __name__ == "__main__":
     fmt_ = G.QSurfaceFormat(); fmt_.setSamples(4); fmt_.setDepthBufferSize(24); fmt_.setStencilBufferSize(8)
     fmt_.setProfile(G.QSurfaceFormat.CompatibilityProfile); G.QSurfaceFormat.setDefaultFormat(fmt_)
     app = W.QApplication(sys.argv); app.setStyle("fission")
     app.setApplicationName("Fission"); app.setDesktopFileName("fission"); app.setWindowIcon(icon("extrude", 64))
+    if len(sys.argv) > 2 and sys.argv[1] == "--selftest": os._exit(selftest(sys.argv[2]))
     w = Fission(); w.show()
     if len(sys.argv) > 1 and sys.argv[1].lower().endswith(".fission"): C.QTimer.singleShot(0, lambda: w.open_design(sys.argv[1]))
     sys.exit(app.exec())

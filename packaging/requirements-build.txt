@@ -1,0 +1,7 @@
+# Pinned so every platform packages the same kernel / UI versions (cadquery-ocp pins vtk itself).
+cadquery-ocp==8.0.1.1.0
+PySide6-Essentials==6.11.2
+PyOpenGL==3.1.10
+numpy>=1.26,<3
+pyinstaller==6.22.3
+pillow>=10

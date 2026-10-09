@@ -26,22 +26,37 @@ From terminal
 3. ./fission.AppImage
 
 
+### Running on Windows / macOS
+
+Download from releases:
+
+- Windows: `Fission-<version>-Windows-x64-Setup.exe` (installer) or the `-portable.zip`
+- macOS: `Fission-<version>-macOS-arm64.zip` (Apple Silicon) or `-macOS-x86_64.zip` (Intel), unzip and
+  drag Fission.app to Applications. The first time, right click --> Open (the app isn't notarized)
+
+
 ### Running in python 
 
 1. clone the project 
 2. python3 -m venv venv
 4. source ./venv/bin/activate
 5. pip install -r requirements.txt
-6. python3 fissionX.py
+6. python3 fission.py
 
-### Building appimage
+### Building
 
+Releases are built automatically by GitHub Actions (`.github/workflows/release.yml`) whenever the version in
+the header of `fission.py` ("Fission X.Y") changes on main, or a `vX.Y` tag is pushed.
 
-1. clone the project 
-2. python3 -m venv venv
-4. source ./venv/bin/activate
-5. pip install -r requirements.txt
-6. ./build_appimage.sh fissionX.py
+To build locally on Linux:
+
+    ./packaging/linux/build_appimage.sh fission.py              # Linux AppImage
+    python3 packaging/xbuild/xbuild.py windows mac --src fission.py   # Windows + macOS, cross-built from Linux
+                                                                # (needs: sudo apt install nsis gcc-mingw-w64-x86-64 zip)
+
+Any build can be checked with `<app> --selftest report.txt` (exits 0 and writes "SELFTEST OK");
+on macOS run `Fission.app/Contents/MacOS/Fission -- --selftest report.txt`.
+`packaging/windows/build_windows.ps1` and `packaging/macos/build_mac.sh` build natively with PyInstaller instead.
 
 
 ### Contributing
