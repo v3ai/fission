@@ -1,0 +1,85 @@
+# Builds the Linux AppImage and publishes it as a GitHub release.
+#
+# Runs automatically when:
+#   - a commit lands on main that changes the version in fission.py's header ("Fission X.Y")
+#     and there is no release for that version yet -> tags vX.Y and releases it
+#   - a tag like v0.7 is pushed -> releases that tag
+# It can also be started by hand from the Actions tab (Run workflow).
+name: Release
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+    paths:
+      - fission.py
+      - build_appimage.sh
+      - requirements.txt
+      - .github/workflows/release.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Work out version
+        id: ver
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if [ "${GITHUB_REF_TYPE}" = "tag" ]; then
+            TAG="${GITHUB_REF_NAME}"
+            VERSION="${TAG#v}"
+          else
+            VERSION="$(head -n 20 fission.py | grep -oE 'Fission [0-9]+(\.[0-9]+)+' | head -n1 | cut -d' ' -f2 || true)"
+            [ -n "$VERSION" ] || { echo "::error::no 'Fission X.Y' version found in the header of fission.py"; exit 1; }
+            TAG="v$VERSION"
+          fi
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "Release $TAG already exists - nothing to do (bump the version in fission.py to make a new one)."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "Version $VERSION, tag $TAG"
+
+      - name: Cache downloads
+        if: steps.ver.outputs.skip != 'true'
+        uses: actions/cache@v4
+        with:
+          path: build/cache
+          key: appimage-cache-${{ hashFiles('build_appimage.sh') }}
+          restore-keys: appimage-cache-
+
+      - name: Build AppImage
+        if: steps.ver.outputs.skip != 'true'
+        run: |
+          mkdir -p dist
+          ./build_appimage.sh fission.py -v "${{ steps.ver.outputs.version }}" \
+            -o "dist/Fission-${{ steps.ver.outputs.version }}-x86_64.AppImage"
+          cp "dist/Fission-${{ steps.ver.outputs.version }}-x86_64.AppImage" dist/fission.AppImage
+          (cd dist && sha256sum *.AppImage > SHA256SUMS.txt)
+
+      - name: Publish release
+        if: steps.ver.outputs.skip != 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.ver.outputs.tag }}
+        run: |
+          gh release create "$TAG" dist/*.AppImage dist/SHA256SUMS.txt \
+            --target "$GITHUB_SHA" \
+            --title "Fission ${{ steps.ver.outputs.version }}" \
+            --generate-notes
