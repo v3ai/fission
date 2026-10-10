@@ -10390,6 +10390,10 @@ def selftest(out):
         w = Fission(); w.show()
         t = time.time()
         while time.time() - t < 1.5: W.QApplication.processEvents(); time.sleep(0.02)
+        ctx = w.vp.context()
+        if not w.vp.isValid() or ctx is None:
+            raise RuntimeError("the 3D view got no OpenGL context - the graphics driver is missing or too old")
+        f = ctx.format(); lines.append(f"Qt context: OpenGL {f.majorVersion()}.{f.minorVersion()}")
         w.vp.makeCurrent()
         gl = glGetString(GL_VERSION); vendor = glGetString(GL_RENDERER)
         lines.append(f"window: {w.width()}x{w.height()}  OpenGL {gl.decode() if gl else '?'}  ({vendor.decode() if vendor else '?'})")
