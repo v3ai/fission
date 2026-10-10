@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Fission 0.6 - a free, CAD app on the OpenCascade kernel (cadquery-ocp).
+"""Fission 0.7 - a free, Fusion-360-styled CAD app on the OpenCascade kernel (cadquery-ocp).
 
 Sketch (S) on the ground, the front / right origin planes or any flat face. Inside the sketch: Line (L), Rectangle (R),
 Circle (C), arcs, polygons, ellipses, slots, splines, conics, text, Dimension (D), Trim (T), Offset (O), Project (P),
@@ -100,13 +100,13 @@ def fmt(x, nd=2):
     t = f"{x:.{nd}f}".rstrip("0").rstrip(".")
     return "0" if t in ("-0", "") else t
 
-# ---- palette ----
+# ---- Fusion-like palette ----
 BG_TOP, BG_BOT = (0.996, 0.996, 1.0), (0.905, 0.915, 0.93)
 BODY, EDGE, SEL, SKETCH = (0.66, 0.65, 0.61), (0.11, 0.11, 0.12), (0.02, 0.59, 0.84), (0.1, 0.3, 0.65)
 HILITE = (0.3, 0.64, 1.0)        # translucent blue used for hovered / selected faces
 FILL, DRAW = (0.35, 0.6, 0.9), ()
 LIGHT = (0.2, 0.45, 1.0)         # key-light direction (world space); also drives the ground shadow
-ACCENT = "#0696d7"               # 
+ACCENT = "#0696d7"               # Fusion's UI blue
 
 # ---- procedurally drawn icons (no image assets to ship) ----
 INK, BLUE, BLUE_D, GREEN, ORANGE = "#555d66", "#2f86d0", "#1d5c93", "#3fae49", "#f2a33a"
@@ -517,6 +517,276 @@ def _check(p):
     p.setPen(_pen("white", 5.5)); p.setBrush(C.Qt.NoBrush); p.drawPolyline(G.QPolygonF([C.QPointF(8, 21), C.QPointF(16, 29), C.QPointF(32, 11)]))
 ICONS["check"] = _check
 
+
+# ---- icons for the SURFACE workspace (surfaces drawn as thin orange sheets) ----
+SF_F, SF_L, SF_B = "#f8c99a", "#d6741c", "#e9a35f"
+def _sheet(p, pts, fill=SF_F, line=SF_L, w=1.5): _pg(p, pts, fill, line, w)
+def _f_sextrude(p):
+    _sheet(p, [(6, 30), (6, 12), (22, 6), (22, 24)]); _sheet(p, [(22, 24), (22, 6), (34, 12), (34, 30)], SF_B)
+    _path(p, [(6, 30), (22, 24), (34, 30)], SKB, 2.4); _arrowhead(p, 20, 4, -math.pi/2, "#4a9fdc", 6)
+def _f_srevolve(p):
+    p.setPen(_pen(SF_L, 1.5)); p.setBrush(G.QColor(SF_F)); p.drawEllipse(C.QRectF(6, 8, 28, 9))
+    _pg(p, [(6, 12.5), (6, 28), (34, 28), (34, 12.5)], SF_B, SF_L, 1.5); p.setBrush(G.QColor(SF_F)); p.drawEllipse(C.QRectF(6, 23.5, 28, 9))
+    p.setPen(_pen("#8a929b", 1, True)); p.drawLine(C.QLineF(20, 2, 20, 38))
+def _f_ssweep(p):
+    pa = G.QPainterPath(); pa.moveTo(6, 30); pa.cubicTo(14, 8, 26, 34, 34, 10); pa.lineTo(34, 18); pa.cubicTo(26, 42, 14, 16, 6, 38); pa.closeSubpath()
+    p.setPen(_pen(SF_L, 1.4)); p.setBrush(G.QColor(SF_F)); p.drawPath(pa); _path(p, [(6, 34), (14, 20), (26, 30), (34, 14)], "#9b4fc9", 1.6)
+def _f_sloft(p):
+    pa = G.QPainterPath(); pa.moveTo(5, 32); pa.cubicTo(12, 20, 12, 14, 18, 6); pa.lineTo(35, 10); pa.cubicTo(30, 18, 30, 24, 28, 34); pa.closeSubpath()
+    p.setPen(_pen(SF_L, 1.4)); p.setBrush(G.QColor(SF_F)); p.drawPath(pa)
+    _path(p, [(5, 32), (28, 34)], SKB, 2.4); _path(p, [(18, 6), (35, 10)], SKB, 2.4)
+def _f_patch(p):
+    _path(p, [(6, 28), (12, 10), (30, 8), (35, 26), (18, 34)], SKB, 2.2, True)
+    pa = G.QPainterPath(); pa.moveTo(6, 28); pa.lineTo(12, 10); pa.lineTo(30, 8); pa.lineTo(35, 26); pa.lineTo(18, 34); pa.closeSubpath()
+    p.setPen(C.Qt.NoPen); p.setBrush(G.QColor(248, 201, 154, 200)); p.drawPath(pa); _path(p, [(6, 28), (12, 10), (30, 8), (35, 26), (18, 34)], SKB, 2.2, True)
+def _f_ruled(p):
+    _sheet(p, [(4, 30), (22, 22), (22, 10), (4, 18)], "#d9dde2", "#8f969f"); _sheet(p, [(22, 22), (36, 30), (36, 18), (22, 10)])
+    _path(p, [(22, 22), (22, 10)], SKB, 2.6)
+def _f_soffset(p):
+    _sheet(p, [(4, 30), (18, 22), (36, 28), (22, 36)], "#d9dde2", "#8f969f"); _sheet(p, [(4, 18), (18, 10), (36, 16), (22, 24)])
+    p.setPen(_pen("#4a9fdc", 1.4, True)); p.drawLine(C.QLineF(20, 23, 20, 29))
+def _f_trim(p):
+    _sheet(p, [(4, 30), (18, 22), (18, 8), (4, 16)]); _pg(p, [(18, 22), (36, 30), (36, 16), (18, 8)], None, SF_L, 1.2)
+    p.setPen(_pen("#b3261e", 1.4, True)); p.drawLine(C.QLineF(18, 4, 18, 36)); _ln(p, 25, 14, 31, 24, "#b3261e", 2); _ln(p, 31, 14, 25, 24, "#b3261e", 2)
+def _f_untrim(p):
+    _sheet(p, [(4, 28), (20, 34), (36, 26), (20, 20)]); p.setPen(_pen(SF_L, 1.2, True)); p.setBrush(C.Qt.NoBrush)
+    p.drawPolygon(G.QPolygonF([C.QPointF(4, 28), C.QPointF(4, 10), C.QPointF(20, 4), C.QPointF(36, 8), C.QPointF(36, 26)]))
+    _arrowhead(p, 20, 8, -math.pi/2, "#4a9fdc", 6); _ln(p, 20, 20, 20, 10, "#4a9fdc", 1.6)
+def _f_sextend(p):
+    _sheet(p, [(4, 30), (4, 14), (20, 8), (20, 24)]); _pg(p, [(20, 24), (20, 8), (34, 4), (34, 20)], None, SF_L, 1.2)
+    _ln(p, 22, 16, 31, 13, "#4a9fdc", 1.8); _arrowhead(p, 33, 12.5, -0.3, "#4a9fdc", 6)
+def _f_stitch(p):
+    _sheet(p, [(4, 30), (4, 12), (19, 8), (19, 26)]); _sheet(p, [(21, 26), (21, 8), (36, 12), (36, 30)], SF_B)
+    for y in (11, 16, 21): _ln(p, 16, y, 24, y + 2, "#1d5c93", 1.8)
+def _f_unstitch(p):
+    _sheet(p, [(3, 30), (3, 12), (16, 8), (16, 26)]); _sheet(p, [(24, 26), (24, 8), (37, 12), (37, 30)], SF_B)
+    _ln(p, 18, 16, 22, 16, "#b3261e", 1.6); _arrowhead(p, 22, 16, 0, "#b3261e", 4); _arrowhead(p, 18, 16, math.pi, "#b3261e", 4)
+def _f_revnormal(p):
+    _sheet(p, [(4, 30), (18, 22), (36, 28), (22, 36)]); _ln(p, 20, 29, 20, 9, "#4a9fdc", 2); _arrowhead(p, 20, 7, -math.pi/2, "#4a9fdc", 6)
+    p.setPen(_pen("#6b7280", 1.4)); p.setBrush(C.Qt.NoBrush); p.drawArc(C.QRectF(24, 6, 12, 12), 90*16, -270*16); _arrowhead(p, 30, 6, math.pi, "#6b7280", 5)
+def _f_sdelete(p):
+    _box(p, 20, 9, 13, 13, ("#e1e4e8", "#b1b7bf", "#8f969f"), "#6f757d"); _pg(p, [(7, 12), (20, 5), (33, 12), (20, 19)], "#ffffff", "#b3261e", 1.4)
+    _ln(p, 15, 9, 25, 15, "#b3261e", 2); _ln(p, 25, 9, 15, 15, "#b3261e", 2)
+def _f_surfbody(p): _sheet(p, [(4, 30), (14, 12), (36, 10), (28, 30)], SF_F, SF_L, 1.6)
+def _f_surface_tab(p): _f_sloft(p)
+ICONS.update(sextrude=_f_sextrude, srevolve=_f_srevolve, ssweep=_f_ssweep, sloft=_f_sloft, patch=_f_patch, ruled=_f_ruled,
+             soffset=_f_soffset, trim3d=_f_trim, untrim=_f_untrim, sextend=_f_sextend, stitch=_f_stitch, unstitch=_f_unstitch,
+             revnormal=_f_revnormal, sdelete=_f_sdelete, surfbody=_f_surfbody)
+
+
+# ---- icons for Inspect / Select / view tools (0.7) ----
+def _n_measure(p):
+    p.setPen(_pen("#4a5159", 1.6)); p.setBrush(G.QColor("#f2d36b")); p.drawRoundedRect(C.QRectF(4, 14, 32, 12), 2, 2)
+    for i, x in enumerate(range(8, 34, 4)): _ln(p, x, 14, x, 18 if i % 2 else 21, "#4a5159", 1.2)
+def _n_section(p):
+    _box(p, 20, 7, 14, 14); p.setPen(C.Qt.NoPen); p.setBrush(G.QColor("#f0f0f0")); p.drawRect(C.QRectF(20, 4, 18, 34))
+    _pg(p, [(20, 14), (30, 9), (30, 24), (20, 30)], "#e38a5b", "#a2471b", 1.2)
+    for y in range(13, 30, 4): _ln(p, 21, y + 3, 29, y - 1, "#a2471b", 1)
+def _n_interf(p):
+    _box(p, 15, 10, 10, 10, ("#a9d6f5", "#4a9fdc", "#2b79bd")); _box(p, 25, 16, 10, 10, ("#e1e4e8", "#b1b7bf", "#8f969f"), "#6f757d")
+    _pg(p, [(19, 22), (25, 19), (25, 28), (19, 31)], "#e04a3a", "#a32418", 1.2)
+def _n_zebra(p):
+    p.setBrush(G.QColor("#ffffff")); p.setPen(_pen("#4a5159", 1.4)); p.drawEllipse(C.QRectF(5, 5, 30, 30))
+    p.save(); path = G.QPainterPath(); path.addEllipse(C.QRectF(5, 5, 30, 30)); p.setClipPath(path)
+    for y in range(5, 36, 6): p.fillRect(C.QRectF(5, y, 30, 3), G.QColor("#222"))
+    p.restore()
+def _n_draft(p):
+    _pg(p, [(8, 34), (14, 6), (26, 6), (32, 34)], None, None); p.setPen(C.Qt.NoPen)
+    p.setBrush(G.QColor("#4caf50")); p.drawPolygon(G.QPolygonF([C.QPointF(8, 34), C.QPointF(14, 6), C.QPointF(20, 6), C.QPointF(20, 34)]))
+    p.setBrush(G.QColor("#e04a3a")); p.drawPolygon(G.QPolygonF([C.QPointF(20, 34), C.QPointF(20, 6), C.QPointF(26, 6), C.QPointF(32, 34)]))
+    _ln(p, 20, 2, 20, 38, "#333", 1.2)
+def _n_curvmap(p):
+    g = G.QLinearGradient(4, 0, 36, 0)
+    for t, c in ((0, "#2a4ff2"), (0.35, "#1ccbe6"), (0.6, "#3cc84a"), (0.8, "#f6d127"), (1, "#eb3326")): g.setColorAt(t, G.QColor(c))
+    path = G.QPainterPath(); path.moveTo(4, 32); path.cubicTo(14, 32, 20, 6, 36, 8); path.lineTo(36, 34); path.lineTo(4, 34); path.closeSubpath()
+    p.setPen(_pen("#4a5159", 1.2)); p.setBrush(g); p.drawPath(path)
+def _n_comb(p):
+    path = G.QPainterPath(); path.moveTo(4, 30); path.cubicTo(14, 30, 24, 10, 36, 10)
+    p.setPen(_pen("#2f86d0", 2.2)); p.setBrush(C.Qt.NoBrush); p.drawPath(path)
+    for i in range(1, 9):
+        t = i/9; pt = path.pointAtPercent(t); a = path.angleAtPercent(t); k = math.sin(t*math.pi)*9
+        nx, ny = math.sin(math.radians(a)), math.cos(math.radians(a)); _ln(p, pt.x(), pt.y(), pt.x() - nx*k, pt.y() - ny*k, "#c2347a", 1.3)
+def _n_com(p):
+    p.setPen(_pen("#333", 1.6)); p.setBrush(G.QColor("white")); p.drawEllipse(C.QRectF(9, 9, 22, 22))
+    p.setPen(C.Qt.NoPen); p.setBrush(G.QColor("#333")); p.drawPie(C.QRectF(9, 9, 22, 22), 0, 90*16); p.drawPie(C.QRectF(9, 9, 22, 22), 180*16, 90*16)
+def _n_props(p):
+    p.setPen(_pen("#4a5159", 1.4)); p.setBrush(G.QColor("white")); p.drawRoundedRect(C.QRectF(8, 4, 24, 32), 2, 2)
+    for y in (11, 17, 23, 29): _ln(p, 12, y, 28, y, "#7c8590", 1.6)
+def _n_selfilter(p):
+    _pg(p, [(6, 8), (34, 8), (23, 21), (23, 32), (17, 35), (17, 21)], "#d6e9f8", "#2b79bd", 1.4)
+def _n_selwin(p):
+    p.setPen(_pen("#2b79bd", 1.4, True)); p.setBrush(G.QColor(6, 150, 215, 40)); p.drawRect(C.QRectF(5, 7, 30, 24))
+    _pg(p, [(24, 22), (24, 37), (28, 33), (31, 39), (33, 38), (30, 32), (35, 32)], "white", "#333", 1.1)
+def _n_search(p):
+    p.setPen(_pen("#4a5159", 2.4)); p.setBrush(C.Qt.NoBrush); p.drawEllipse(C.QRectF(7, 7, 18, 18)); _ln(p, 23, 23, 33, 33, "#4a5159", 3)
+def _n_display(p):
+    _box(p, 20, 8, 12, 12, ("#e1e4e8", "#b1b7bf", "#8f969f"), "#6f757d")
+    p.setPen(_pen("#2b79bd", 1.2, True)); p.setBrush(C.Qt.NoBrush); p.drawRect(C.QRectF(4, 4, 32, 32))
+def _n_view(p): _pg(p, [(6, 14), (26, 14), (34, 8), (34, 32), (26, 26), (6, 26)], "#e1e4e8", "#6f757d", 1.3)
+ICONS.update(measure=_n_measure, section=_n_section, interference=_n_interf, zebra=_n_zebra, draftan=_n_draft, curvmap=_n_curvmap,
+             comb=_n_comb, com=_n_com, props=_n_props, selfilter=_n_selfilter, selwin=_n_selwin, search=_n_search, display=_n_display,
+             view=_n_view)
+
+
+# ---- icons for the MESH workspace and file exchange (0.7) ----
+MS_F, MS_L, MS_B = "#c9b6ea", "#6b4fa8", "#a68bd8"
+def _mesh_patch(p, pts, fill=MS_F, line=MS_L):
+    """A triangulated quad (4 corners) drawn as two triangles with a centre fan."""
+    _pg(p, pts, fill, line, 1.3); a, b, c, d = pts
+    cx, cy = sum(q[0] for q in pts)/4, sum(q[1] for q in pts)/4
+    for q in pts: _ln(p, cx, cy, q[0], q[1], line, 0.9)
+def _mesh_box(p):
+    _mesh_patch(p, [(20, 6), (34, 13), (20, 20), (6, 13)], "#e2d8f5"); _mesh_patch(p, [(6, 13), (20, 20), (20, 34), (6, 27)])
+    _mesh_patch(p, [(20, 20), (34, 13), (34, 27), (20, 34)], MS_B)
+def _m_body(p): _mesh_box(p)
+def _m_import(p):
+    _mesh_box(p); _pg(p, [(26, 30), (38, 30), (38, 38), (26, 38)], "white", "#4a5159", 1.2); _ln(p, 32, 22, 32, 33, "#2b79bd", 2.2)
+    _arrowhead(p, 32, 35, math.pi/2, "#2b79bd", 5)
+def _m_cadimport(p):
+    _box(p, 18, 6, 12, 14); p.setPen(_pen("#4a5159", 1.2)); p.setBrush(G.QColor("white")); p.drawRect(C.QRectF(24, 24, 14, 14))
+    _ln(p, 31, 16, 31, 30, "#2b79bd", 2.2); _arrowhead(p, 31, 32, math.pi/2, "#2b79bd", 5)
+def _m_export(p):
+    p.setPen(_pen("#4a5159", 1.4)); p.setBrush(G.QColor("white")); p.drawRoundedRect(C.QRectF(8, 4, 22, 30), 2, 2)
+    _ln(p, 20, 24, 34, 24, "#3c9a4a", 2.4); _arrowhead(p, 36, 24, 0, "#3c9a4a", 6)
+def _m_tess(p):
+    _box(p, 14, 8, 9, 12); _ln(p, 24, 20, 28, 20, "#6b7280", 2); _arrowhead(p, 30, 20, 0, "#6b7280", 5)
+    _mesh_patch(p, [(33, 10), (39, 14), (39, 30), (33, 26)])
+def _m_convert(p):
+    _mesh_patch(p, [(2, 14), (12, 10), (12, 28), (2, 32)]); _ln(p, 14, 20, 20, 20, "#6b7280", 2); _arrowhead(p, 22, 20, 0, "#6b7280", 5)
+    _box(p, 31, 8, 8, 14)
+def _m_rev(p):
+    _mesh_patch(p, [(6, 26), (20, 18), (34, 26), (20, 34)])
+    _ln(p, 14, 24, 14, 8, "#2b79bd", 2); _arrowhead(p, 14, 6, -math.pi/2, "#2b79bd", 5)
+    _ln(p, 26, 12, 26, 26, "#e04a3a", 2); _arrowhead(p, 26, 28, math.pi/2, "#e04a3a", 5)
+def _m_repair(p):
+    _mesh_patch(p, [(4, 22), (20, 12), (36, 22), (20, 32)]); _pg(p, [(16, 20), (24, 18), (26, 24), (18, 26)], "white", "#e04a3a", 1.2)
+    p.setPen(_pen("#4a5159", 2.6)); p.drawLine(C.QLineF(24, 6, 34, 16)); p.setBrush(G.QColor("#9aa3ad")); p.drawEllipse(C.QRectF(30, 2, 8, 8))
+def _m_cut(p):
+    _mesh_box(p); p.setPen(_pen("#e04a3a", 1.6, True)); p.drawLine(C.QLineF(2, 22, 38, 16))
+def _m_combine(p):
+    _mesh_patch(p, [(4, 12), (20, 6), (20, 26), (4, 32)]); _mesh_patch(p, [(16, 16), (36, 10), (36, 30), (16, 36)], MS_B)
+def _m_sep(p):
+    _mesh_patch(p, [(2, 14), (14, 10), (14, 26), (2, 30)]); _mesh_patch(p, [(24, 10), (38, 14), (38, 30), (24, 26)], MS_B)
+    p.setPen(_pen("#6b7280", 1.2, True)); p.drawLine(C.QLineF(19, 4, 19, 36))
+def _m_smooth(p):
+    pa = G.QPainterPath(); pa.moveTo(4, 30); pa.lineTo(10, 18); pa.lineTo(16, 26); pa.lineTo(22, 12); pa.lineTo(28, 24); pa.lineTo(36, 14)
+    p.setPen(_pen("#9aa3ad", 1.4, True)); p.setBrush(C.Qt.NoBrush); p.drawPath(pa)
+    pb = G.QPainterPath(); pb.moveTo(4, 32); pb.cubicTo(14, 18, 26, 18, 36, 20); p.setPen(_pen(MS_L, 2.6)); p.drawPath(pb)
+def _m_reduce(p):
+    _mesh_patch(p, [(2, 8), (18, 8), (18, 32), (2, 32)]); _pg(p, [(24, 8), (38, 8), (38, 32), (24, 32)], MS_F, MS_L, 1.3); _ln(p, 24, 8, 38, 32, MS_L, 1)
+def _m_section(p):
+    _mesh_box(p); _pg(p, [(2, 26), (24, 18), (38, 22), (16, 30)], None, None)
+    p.setPen(_pen("#2b79bd", 2.2)); p.setBrush(C.Qt.NoBrush); p.drawPolyline(G.QPolygonF([C.QPointF(6, 20), C.QPointF(20, 27), C.QPointF(34, 20)]))
+ICONS.update(meshbody=_m_body, meshimport=_m_import, cadimport=_m_cadimport, export=_m_export, tessellate=_m_tess, meshconvert=_m_convert,
+             mrev=_m_rev, mrepair=_m_repair, mcut=_m_cut, mcombine=_m_combine, msep=_m_sep, msmooth=_m_smooth, mreduce=_m_reduce,
+             msection=_m_section)
+
+def _tl_folder(p):
+    _pg(p, [(4, 10), (16, 10), (19, 14), (36, 14), (36, 32), (4, 32)], "#f6c75c", "#b8860b", 1.4)
+ICONS["tlfolder"] = _tl_folder
+
+# ---- icons for assemblies (0.7) ----
+def _a_comp(p):
+    _box(p, 14, 6, 9, 10, ("#f5e3a8", "#e0b84a", "#c0962a"), "#8a6a12"); _box(p, 27, 16, 9, 10)
+def _a_joint(p):
+    _box(p, 13, 14, 9, 10, ("#e1e4e8", "#b1b7bf", "#8f969f"), "#6f757d"); _box(p, 28, 4, 8, 9)
+    p.setPen(_pen("#0696d7", 2)); p.setBrush(C.Qt.NoBrush); p.drawEllipse(C.QRectF(16, 16, 10, 6)); _ln(p, 21, 6, 21, 34, "#0696d7", 1.6)
+def _a_drive(p):
+    p.setPen(_pen("#4a5159", 2)); p.setBrush(G.QColor("#e1e4e8")); p.drawEllipse(C.QRectF(8, 8, 24, 24))
+    path = G.QPainterPath(); path.arcMoveTo(C.QRectF(4, 4, 32, 32), 30); path.arcTo(C.QRectF(4, 4, 32, 32), 30, 220)
+    p.setPen(_pen("#0696d7", 2.4)); p.setBrush(C.Qt.NoBrush); p.drawPath(path); _arrowhead(p, 9, 29, 2.2, "#0696d7", 6)
+def _a_link(p):
+    for cx, r in ((13, 9), (29, 6)):
+        p.setPen(_pen("#4a5159", 1.6)); p.setBrush(G.QColor("#e1e4e8")); p.drawEllipse(C.QPointF(cx, 20), r, r)
+        for k in range(8):
+            a = k*math.pi/4; _ln(p, cx + r*math.cos(a), 20 + r*math.sin(a), cx + (r + 3)*math.cos(a), 20 + (r + 3)*math.sin(a), "#4a5159", 2)
+def _a_motion(p):
+    _pg(p, [(6, 30), (16, 30), (16, 20), (6, 20)], "#d6e9f8", "#2b79bd", 1.2); _pg(p, [(22, 22), (32, 22), (32, 12), (22, 12)], "#a9d6f5", "#2b79bd", 1.4)
+    p.setPen(_pen("#6b7280", 1.2, True)); p.drawLine(C.QLineF(16, 22, 22, 18)); _pg(p, [(14, 34), (14, 40), (19, 37)], "#3c9a4a", None)
+def _a_bom(p):
+    p.setPen(_pen("#4a5159", 1.4)); p.setBrush(G.QColor("white")); p.drawRect(C.QRectF(6, 5, 28, 30))
+    for y in (13, 20, 27): _ln(p, 6, y, 34, y, "#9aa3ad", 1)
+    _ln(p, 14, 5, 14, 35, "#9aa3ad", 1)
+ICONS.update(component=_a_comp, joint=_a_joint, jdrive=_a_drive, mlink=_a_link, motion=_a_motion, bom=_a_bom,
+             comp=_a_comp, compprops=_a_comp)
+
+
+# ---- icons for sheet metal (0.7) ----
+SMF, SML = "#cfd8e3", "#56657a"
+def _s_base(p): _pg(p, [(4, 24), (22, 16), (36, 22), (18, 30)], SMF, SML, 1.4); _pg(p, [(4, 24), (18, 30), (18, 33), (4, 27)], "#9aa8ba", SML, 1)
+def _s_flange(p):
+    _pg(p, [(4, 26), (20, 18), (30, 23), (14, 31)], SMF, SML, 1.4); _pg(p, [(20, 18), (30, 23), (30, 7), (20, 2)], "#a9d6f5", "#2b79bd", 1.4)
+def _s_hem(p):
+    _pg(p, [(4, 22), (28, 22), (28, 26), (4, 26)], SMF, SML, 1.3)
+    path = G.QPainterPath(); path.moveTo(28, 22); path.cubicTo(38, 22, 38, 14, 28, 14); path.lineTo(12, 14)
+    p.setPen(_pen("#2b79bd", 3)); p.setBrush(C.Qt.NoBrush); p.drawPath(path)
+def _s_fold(p):
+    _pg(p, [(4, 30), (20, 30), (20, 26), (4, 26)], SMF, SML, 1.3); _pg(p, [(20, 26), (32, 8), (35, 10), (22, 30)], "#a9d6f5", "#2b79bd", 1.3)
+    p.setPen(_pen("#e04a3a", 1.2, True)); p.drawLine(C.QLineF(20, 34, 20, 20))
+def _s_unfold(p):
+    _pg(p, [(4, 30), (20, 30), (20, 26), (4, 26)], SMF, SML, 1.3); _pg(p, [(20, 30), (36, 30), (36, 26), (20, 26)], "#a9d6f5", "#2b79bd", 1.3)
+    p.setPen(_pen("#6b7280", 1.4, True)); p.setBrush(C.Qt.NoBrush); p.drawArc(C.QRectF(14, 8, 24, 36), 30*16, 60*16)
+def _s_refold(p):
+    _pg(p, [(4, 30), (20, 30), (20, 26), (4, 26)], SMF, SML, 1.3); _pg(p, [(20, 26), (24, 26), (24, 8), (20, 8)], "#a9d6f5", "#2b79bd", 1.3)
+def _s_flat(p):
+    _pg(p, [(4, 10), (14, 10), (14, 4), (26, 4), (26, 10), (36, 10), (36, 30), (4, 30)], SMF, SML, 1.3)
+    p.setPen(_pen("#e04a3a", 1.2, True)); p.drawLine(C.QLineF(4, 16, 36, 16)); p.drawLine(C.QLineF(14, 10, 14, 30)); p.drawLine(C.QLineF(26, 10, 26, 30))
+def _s_rule(p):
+    p.setPen(_pen("#4a5159", 1.4)); p.setBrush(G.QColor("white")); p.drawRoundedRect(C.QRectF(8, 4, 24, 32), 2, 2)
+    _pg(p, [(12, 22), (28, 22), (28, 25), (12, 25)], SMF, SML, 1); _ln(p, 12, 12, 28, 12, "#7c8590", 1.6); _ln(p, 12, 30, 24, 30, "#7c8590", 1.6)
+def _s_body(p):
+    _pg(p, [(4, 24), (20, 16), (30, 21), (14, 29)], SMF, SML, 1.3); _pg(p, [(20, 16), (30, 21), (30, 9), (20, 4)], "#e1e7ef", SML, 1.3)
+ICONS.update(sbase=_s_base, sflange=_s_flange, shem=_s_hem, sfold=_s_fold, unfold=_s_unfold, refold=_s_refold, flatpattern=_s_flat,
+             smrule=_s_rule, sheetbody=_s_body)
+
+
+# ---- plastic icons (0.7) ----
+def _p_boss(p):
+    _pg(p, [(4, 30), (20, 22), (36, 30), (20, 38)], "#e1e4e8", "#6f757d", 1.2)
+    p.setPen(_pen("#2b79bd", 1.4)); p.setBrush(G.QColor("#a9d6f5")); p.drawRect(C.QRectF(14, 10, 12, 20)); p.drawEllipse(C.QRectF(14, 6, 12, 7))
+    p.setBrush(G.QColor("#333")); p.drawEllipse(C.QRectF(18, 8, 4, 3))
+def _p_lip(p):
+    _pg(p, [(4, 34), (4, 16), (14, 16), (14, 34)], "#e1e4e8", "#6f757d", 1.2); _pg(p, [(10, 16), (10, 10), (14, 10), (14, 16)], "#a9d6f5", "#2b79bd", 1.2)
+    _pg(p, [(24, 4), (24, 20), (36, 20), (36, 4)], "#e1e4e8", "#6f757d", 1.2); _pg(p, [(29, 20), (29, 25), (34, 25), (34, 20)], "white", "#e04a3a", 1)
+def _p_snap(p):
+    _pg(p, [(4, 34), (36, 34), (36, 38), (4, 38)], "#e1e4e8", "#6f757d", 1.2); _pg(p, [(16, 34), (16, 6), (20, 6), (20, 34)], "#a9d6f5", "#2b79bd", 1.3)
+    _pg(p, [(20, 6), (20, 14), (27, 12)], "#a9d6f5", "#2b79bd", 1.3)
+ICONS.update(boss=_p_boss, lipgroove=_p_lip, snapfit=_p_snap)
+
+
+# ---- render / animation / manufacture icons (0.7) ----
+def _r_render(p):
+    p.setPen(_pen("#4a5159", 1.4)); g = G.QRadialGradient(16, 14, 16); g.setColorAt(0, G.QColor("#ffffff")); g.setColorAt(1, G.QColor("#7d8fa6"))
+    p.setBrush(g); p.drawEllipse(C.QRectF(6, 6, 26, 26)); p.setPen(C.Qt.NoPen); p.setBrush(G.QColor(0, 0, 0, 50)); p.drawEllipse(C.QRectF(8, 32, 24, 5))
+def _r_turn(p):
+    _r_render(p); p.setPen(_pen("#0696d7", 2)); p.setBrush(C.Qt.NoBrush); p.drawArc(C.QRectF(2, 22, 36, 14), 200*16, 140*16); _arrowhead(p, 34, 31, 0.3, "#0696d7", 5)
+def _r_explode(p):
+    _box(p, 12, 4, 7, 8); _box(p, 28, 4, 7, 8, ("#e1e4e8", "#b1b7bf", "#8f969f"), "#6f757d"); _box(p, 20, 22, 7, 8)
+    for x1, y1, x2, y2 in ((16, 18, 13, 15), (24, 18, 27, 15)): _ln(p, x1, y1, x2, y2, "#e04a3a", 1.4)
+def _c_setup(p):
+    _pg(p, [(4, 26), (20, 18), (36, 26), (20, 34)], "#f3e2c0", "#b07a26", 1.3); _pg(p, [(4, 26), (20, 34), (20, 38), (4, 30)], "#d9b56d", "#b07a26", 1)
+    _ln(p, 20, 18, 30, 18, "#e04a3a", 2); _ln(p, 20, 18, 20, 6, "#2b79bd", 2); _ln(p, 20, 18, 14, 22, "#3c9a4a", 2)
+def _c_tool(p):
+    p.setPen(_pen("#4a5159", 1.4)); p.setBrush(G.QColor("#c5ccd4")); p.drawRect(C.QRectF(15, 4, 10, 16))
+    p.setBrush(G.QColor("#8f9aa6")); p.drawRect(C.QRectF(16, 20, 8, 14))
+    for y in (22, 26, 30): _ln(p, 16, y, 24, y + 3, "#4a5159", 1)
+def _c_face(p):
+    _pg(p, [(4, 26), (20, 18), (36, 26), (20, 34)], "#f3e2c0", "#b07a26", 1.3)
+    for k in range(4): _ln(p, 8 + k*6, 24 - k*3 + 2, 20 + k*6, 30 - k*3 + 2, "#0f5bd8", 1.4)
+def _c_contour(p):
+    _pg(p, [(8, 14), (30, 14), (30, 30), (8, 30)], "#e1e4e8", "#6f757d", 1.2)
+    p.setPen(_pen("#0f5bd8", 2)); p.setBrush(C.Qt.NoBrush); p.drawRoundedRect(C.QRectF(4, 10, 30, 24), 4, 4)
+def _c_pocket(p):
+    _pg(p, [(4, 6), (36, 6), (36, 34), (4, 34)], "#e1e4e8", "#6f757d", 1.2)
+    p.setPen(_pen("#0f5bd8", 1.4)); p.setBrush(C.Qt.NoBrush)
+    for k in range(3): p.drawRoundedRect(C.QRectF(9 + k*4, 11 + k*4, 22 - k*8, 18 - k*8), 2, 2)
+def _c_drill(p):
+    _pg(p, [(4, 26), (36, 26), (36, 34), (4, 34)], "#e1e4e8", "#6f757d", 1.2)
+    p.setPen(_pen("#4a5159", 1.3)); p.setBrush(G.QColor("#c5ccd4")); p.drawRect(C.QRectF(17, 4, 6, 18)); _pg(p, [(17, 22), (23, 22), (20, 27)], "#c5ccd4", "#4a5159", 1.2)
+    p.setPen(_pen("#0f5bd8", 1.2, True)); p.drawLine(C.QLineF(20, 27, 20, 36))
+ICONS.update(render=_r_render, turntable=_r_turn, explode=_r_explode, camsetup=_c_setup, camtools=_c_tool, camface=_c_face, camcontour=_c_contour,
+             campocket=_c_pocket, camdrill=_c_drill, cam_setup=_c_setup, cam_face=_c_face, cam_contour=_c_contour, cam_pocket=_c_pocket, cam_drill=_c_drill)
+
 def pix(kind, size=40, dpr=2):
     pm = G.QPixmap(size*dpr, size*dpr); pm.setDevicePixelRatio(dpr); pm.fill(C.Qt.transparent)
     p = G.QPainter(pm); p.setRenderHint(G.QPainter.Antialiasing); p.scale(size/40, size/40); ICONS[kind](p); p.end()
@@ -766,7 +1036,7 @@ def revolve(face, origin, axis, deg):
     return outward(BRepPrimAPI_MakeRevol(face, gp_Ax1(pnt(origin), gdir(axis)), math.radians(deg)).Shape())
 
 def clean(shape):
-    """Merge coplanar / co-cylindrical faces left behind by booleans (like fission does)."""
+    """Merge coplanar / co-cylindrical faces left behind by booleans (like Fusion does)."""
     try:
         u = ShapeUpgrade_UnifySameDomain(shape, True, True, True); u.Build(); return u.Shape()
     except Exception:
@@ -1377,7 +1647,7 @@ def section_face(shape, size, at, radial, axial):
     mk.Close(); return BRepBuilderAPI_MakeFace(mk.Wire(), True).Face()
 
 def make_coil(pl, cx, cy, D, revs, height, pitch, mode, angle, section, sec_pos, size):
-    """Spring / coil like fission's Coil command."""
+    """Spring / coil like Fusion's Coil command."""
     if mode == "rev_height": pitch = height/max(revs, 1e-6)
     elif mode == "rev_pitch": height = revs*pitch
     elif mode == "height_pitch": revs = height/max(pitch, 1e-6)
@@ -1505,7 +1775,7 @@ def draft_faces(shape, faces, pull_dir, neutral_o, neutral_n, angle_deg):
     return mk.Shape()
 
 def offset_faces(shape, faces, d):
-    """Push / pull faces of a solid by d along their normals (like fission's Offset Face / Press Pull)."""
+    """Push / pull faces of a solid by d along their normals (like Fusion's Offset Face / Press Pull)."""
     try:
         mk = BRepOffset_MakeOffset(); mk.Initialize(shape, 0.0, 1e-4, BRepOffset_Skin, False, False, GeomAbs_Intersection, False)
         for f in faces: mk.SetOffsetOnFace(f, d)
@@ -1573,7 +1843,7 @@ def boundary_cells(tools):
     return cells
 
 def tangent_chain(body, ei, ang_tol=1.0):
-    """Indices of edges tangent-continuous with edge ei (fission's 'tangent chain')."""
+    """Indices of edges tangent-continuous with edge ei (Fusion's 'tangent chain')."""
     def ends(e):
         c = BRepAdaptor_Curve(e); out = []
         for u, sgn in ((c.FirstParameter(), -1), (c.LastParameter(), 1)):
@@ -2353,7 +2623,7 @@ def geo_rank(geo, skip=()):
     return r
 
 def hold_points(geo, k):
-    """Points that should stay put when constraint / dimension k is applied (fission moves the second pick)."""
+    """Points that should stay put when constraint / dimension k is applied (Fusion moves the second pick)."""
     e = k["e"]
     if not e: return set()
     r = e[0]; t = k["t"]
@@ -3621,6 +3891,354 @@ def project_to_faces(edges, faces, plane):
     return out
 
 # ---------------------------------------------------------------------------------------------------------------
+#  Surface modelling: open (zero-thickness) bodies - extrude / revolve / sweep / loft / patch / ruled / offset,
+#  trim, untrim, extend, stitch, unstitch, reverse normal, delete face
+# ---------------------------------------------------------------------------------------------------------------
+from OCP.BRepFill import BRepFill_Filling, BRepFill
+from OCP.BRepBuilderAPI import BRepBuilderAPI_Sewing
+from OCP.ShapeAnalysis import ShapeAnalysis_FreeBounds
+from OCP.collections import HSequence_TopoDS_Shape as TopTools_HSequenceOfShape
+from OCP.collections import IndexedDataMap_TopoDS_Shape_List_TopoDS_Shape_TopTools_ShapeMapHasher as TopTools_IndexedDataMapOfShapeListOfShape
+from OCP.TopExp import TopExp
+from OCP.TopAbs import TopAbs_SHELL, TopAbs_IN, TopAbs_ON
+from OCP.BRepLib import BRepLib
+from OCP.BRepTools import BRepTools
+from OCP.BRepClass import BRepClass_FaceClassifier
+from OCP.GeomAbs import GeomAbs_C0, GeomAbs_G1, GeomAbs_G2
+from OCP.BRepOffsetAPI import BRepOffsetAPI_MakeOffsetShape
+from OCP.BRepOffset import BRepOffset_Skin
+from OCP.GeomAbs import GeomAbs_Intersection
+from OCP.TopoDS import TopoDS_Face
+from OCP.TopAbs import TopAbs_FORWARD
+from OCP.ShapeFix import ShapeFix_Face
+from OCP.BRepTools import BRepTools_ReShape
+
+def is_surface_shape(sh):
+    """True when a shape has faces but no closed solid (a surface body)."""
+    return not subshapes(sh, TopAbs_SOLID) and bool(subshapes(sh, TopAbs_FACE))
+
+def surface_area(sh):
+    p = GProp_GProps(); surface_props(sh, p); return p.Mass()
+
+def sew(shapes, tol=1e-3, solid_if_closed=True):
+    """Sew faces / shells together. Closed results become solids (like Fusion's Stitch)."""
+    sw = BRepBuilderAPI_Sewing(tol)
+    for x in shapes:
+        for f in subshapes(x, TopAbs_FACE): sw.Add(f)
+    sw.Perform(); out = sw.SewedShape()
+    if solid_if_closed:
+        shells = subshapes(out, TopAbs_SHELL)
+        if shells and all(st(BRep_Tool, "IsClosed")(sh) for sh in shells):
+            try:
+                sol = as_solid(out)
+                if abs(volume(sol)) > 1e-9: return sol
+            except Exception: pass
+    return out
+
+def free_edges(sh):
+    """Edges used by only one face (the open boundary of a surface)."""
+    m = TopTools_IndexedDataMapOfShapeListOfShape(); TopExp.MapShapesAndAncestors_s(sh, TopAbs_EDGE, TopAbs_FACE, m)
+    out = []
+    for i in range(1, m.Extent() + 1):
+        e = m.FindKey(i)
+        if m.FindFromIndex(i).Extent() == 1 and not degenerated(to_edge(e)): out.append(to_edge(e))
+    return out
+
+def faces_of_edge_in(sh, e):
+    m = TopTools_IndexedDataMapOfShapeListOfShape(); TopExp.MapShapesAndAncestors_s(sh, TopAbs_EDGE, TopAbs_FACE, m)
+    i = m.FindIndex(e)
+    if i == 0: return []
+    return [to_face(x) for x in m.FindFromIndex(i)]
+
+def edges_to_wires(edges, tol=1e-4):
+    """Join loose edges into as few wires as possible."""
+    if not edges: return []
+    seq = TopTools_HSequenceOfShape()
+    for e in edges: seq.Append(e)
+    out = TopTools_HSequenceOfShape(); ShapeAnalysis_FreeBounds.ConnectEdgesToWires_s(seq, tol, False, out)
+    return [to_wire(out.Value(i)) for i in range(1, out.Length() + 1)]
+
+def wire_closed(w):
+    a, b = None, None
+    try: return bool(st(BRep_Tool, "IsClosed")(w))
+    except Exception: pass
+    es = subshapes(w, TopAbs_EDGE); p0, _ = edge_ends(es[0]); _, p1 = edge_ends(es[-1])
+    return (p0 - p1).Length < 1e-4
+
+def wire_plane_normal(w):
+    """Normal of the plane a wire lies in (None when it isn't flat or is a straight line)."""
+    from OCP.BRepLib import BRepLib_FindSurface
+    fs = BRepLib_FindSurface(w, 1e-4, True)
+    if not fs.Found(): return None
+    srf = BRepAdaptor_Surface(BRepBuilderAPI_MakeFace(fs.Surface(), 1e-6).Face())
+    if srf.GetType() != GeomAbs_Plane: return None
+    return vec(srf.Plane().Axis().Direction())
+
+def _shell_of(faces_shape):
+    """Faces from a sweep / prism / loft as one connected shell where possible."""
+    fs = subshapes(faces_shape, TopAbs_FACE)
+    if not fs: raise RuntimeError("that made no surface")
+    return sew([faces_shape], solid_if_closed=False) if len(fs) > 1 else fs[0]
+
+def surf_extrude(edges, n, d1, d2=0.0, taper=0.0):
+    """Extrude curves into an open surface: d1 along n, d2 the other way (two-sided / symmetric)."""
+    if abs(d1) < 1e-9 and abs(d2) < 1e-9: raise RuntimeError("the distance is zero")
+    out = []
+    for w in edges_to_wires(edges):
+        base = translated(w, n*(-d2)) if abs(d2) > 1e-12 else w; L = d1 + d2
+        if abs(taper) > 1e-9 and wire_closed(w) and wire_plane_normal(w) is not None:
+            f = BRepBuilderAPI_MakeFace(to_wire(base), True).Face()
+            top = translated(offset_face(f, -L*math.tan(math.radians(taper))), n*L)
+            ts = BRepOffsetAPI_ThruSections(False, True, 1e-6); ts.AddWire(to_wire(base)); ts.AddWire(wires_of(top)[0]); ts.Build()
+            out.append(ts.Shape())
+        else:
+            out.append(BRepPrimAPI_MakePrism(base, gp_Vec(n.x*L, n.y*L, n.z*L)).Shape())
+    return _shell_of(compound(out))
+
+def surf_revolve(edges, o, axis, ang, start=0.0):
+    out = []
+    for w in edges_to_wires(edges):
+        if abs(start) > 1e-9: w = rotated(w, o, axis, math.radians(start))
+        out.append(BRepPrimAPI_MakeRevol(w, gp_Ax1(pnt(o), gdir(axis)), math.radians(ang)).Shape())
+    return _shell_of(compound(out))
+
+def surf_sweep(profile_edges, path, orient="perp", frac=1.0):
+    path = trim_wire(path, frac) if frac < 1 - 1e-9 else path; out = []
+    for w in edges_to_wires(profile_edges):
+        ps = BRepOffsetAPI_MakePipeShell(path)
+        if orient == "parallel":
+            nn = wire_plane_normal(w)
+            if nn is not None: ps.SetMode(gp_Ax2(pnt(centroid(w)), gdir(nn)))
+        ps.SetTransitionMode(BRepBuilderAPI_RightCorner); ps.Add(w, False, False); ps.Build()
+        if not ps.IsDone(): raise RuntimeError("the sweep failed - is the profile at the start of the path?")
+        out.append(ps.Shape())
+    return _shell_of(compound(out))
+
+def surf_loft(sections, closed=False, ruled=False):
+    """Open loft through wires (open or closed) or end points."""
+    if len(sections) < 2: raise RuntimeError("pick at least two sections")
+    ts = BRepOffsetAPI_ThruSections(False, ruled, 1e-6); ts.CheckCompatibility(True)
+    for s_ in sections + ([sections[0]] if closed else []):
+        if s_.ShapeType() == TopAbs_VERTEX: ts.AddVertex(to_vertex(s_))
+        else: ts.AddWire(to_wire(s_))
+    ts.Build()
+    if not ts.IsDone(): raise RuntimeError("the loft failed - do the sections all run the same way?")
+    return _shell_of(ts.Shape())
+
+def surf_patch(edges, support=None, cont="G0", interior=()):
+    """Fill a closed boundary. support: [(edge, adjacent face)] for tangent (G1) / curvature (G2) blending."""
+    ws = edges_to_wires(edges)
+    if len(ws) != 1 or not wire_closed(ws[0]): raise RuntimeError("the boundary must be one closed loop")
+    w = ws[0]
+    if cont == "G0" and not interior and wire_plane_normal(w) is not None:
+        mk = BRepBuilderAPI_MakeFace(w, True)
+        if mk.IsDone(): return mk.Face()
+    fl = BRepFill_Filling(); gc = {"G0": GeomAbs_C0, "G1": GeomAbs_G1, "G2": GeomAbs_G2}[cont]
+    def sup(e):
+        mid = lambda x: vec(BRepAdaptor_Curve(x).Value((BRepAdaptor_Curve(x).FirstParameter() + BRepAdaptor_Curve(x).LastParameter())/2))
+        for se, sf in support or []:
+            if se.IsSame(e) or (mid(se) - mid(e)).Length < 1e-6: return se, sf
+        return e, None
+    for e in subshapes(w, TopAbs_EDGE):
+        e, f = sup(e)
+        if f is not None and cont != "G0": fl.Add(e, f, gc, True)
+        else: fl.Add(e, GeomAbs_C0, True)
+    for q in interior: fl.Add(pnt(q))
+    fl.Build()
+    if not fl.IsDone(): raise RuntimeError("couldn't fill that boundary")
+    return fl.Face()
+
+def _outward_dir(face, e, p):
+    """Unit vector at p (on edge e of face) lying in the surface, across the edge, pointing away from the face."""
+    q, n = normal_at(face, p); c = BRepAdaptor_Curve(e)
+    u = _edge_param(e, p); pp, T = gp_Pnt(), gp_Vec(); c.D1(u, pp, T); t = vec(T).normalize()
+    out = t.cross(n).normalize(); eps = max(1e-3, (bbox(face)[1] - bbox(face)[0]).Length*1e-3)
+    cl = BRepClass_FaceClassifier(face, pnt(p + out*eps), 1e-6)
+    if cl.State() == TopAbs_IN: out = -out
+    return out, n
+
+def _edge_param(e, p):
+    c = BRepAdaptor_Curve(e); u0, u1 = c.FirstParameter(), c.LastParameter(); best, bu = 1e18, u0
+    for k in range(33):
+        u = u0 + (u1 - u0)*k/32; d = (vec(c.Value(u)) - p).Length
+        if d < best: best, bu = d, u
+    return bu
+
+def ruled_strip(e, face, d, kind="tangent", ang=0.0, direction=None, flip=False):
+    """A ruled face hanging off edge e: along the surface (tangent), its normal, or a fixed direction, tilted by ang."""
+    c = BRepAdaptor_Curve(e); u0, u1 = c.FirstParameter(), c.LastParameter()
+    straight = c.GetType() == GeomAbs_Line and (face is None or BRepAdaptor_Surface(face).GetType() == GeomAbs_Plane or kind == "direction")
+    N = 2 if straight else 33; P, Q = [], []
+    ref_out = None
+    for k in range(N):
+        u = u0 + (u1 - u0)*k/(N - 1); p = vec(c.Value(u))
+        if kind == "direction":
+            dv = direction.normalize()
+        else:
+            if face is None: raise RuntimeError("pick edges of a surface or body")
+            out, n = _outward_dir(face, e, p)
+            if ref_out is not None and out.dot(ref_out) < 0: out = -out
+            ref_out = out
+            a = math.radians(ang); base = out if kind == "tangent" else n
+            other = n if kind == "tangent" else out
+            dv = (base*math.cos(a) + other*math.sin(a)).normalize()
+        if flip: dv = -dv
+        P.append(p); Q.append(p + dv*d)
+    if N == 2: e2 = BRepBuilderAPI_MakeEdge(pnt(Q[0]), pnt(Q[1])).Edge()
+    else: e2 = BRepBuilderAPI_MakeEdge(interp3([q.t() for q in Q])).Edge()
+    return BRepFill.Face_s(to_edge(e.Oriented(TopAbs_FORWARD)), e2)
+
+def surf_offset(faces, d):
+    """Offset copy of faces (a new surface)."""
+    sh = sew(faces, solid_if_closed=False) if len(faces) > 1 else faces[0]
+    mk = BRepOffsetAPI_MakeOffsetShape(); mk.PerformByJoin(sh, d, 1e-5, BRepOffset_Skin, False, False, GeomAbs_Intersection)
+    if not mk.IsDone():
+        mk = BRepOffsetAPI_MakeOffsetShape(); mk.PerformBySimple(sh, d)
+        if not mk.IsDone(): raise RuntimeError("couldn't offset those faces")
+    out = mk.Shape()
+    if not subshapes(out, TopAbs_FACE): raise RuntimeError("the offset vanished - try a smaller distance")
+    return out
+
+def face_groups(faces, skip=None):
+    """Connected groups (by shared edges) of a list of faces; edges where skip(edge) is true don't connect."""
+    if not faces: return []
+    m = TopTools_IndexedDataMapOfShapeListOfShape(); TopExp.MapShapesAndAncestors_s(compound(faces), TopAbs_EDGE, TopAbs_FACE, m)
+    idx = ShapeIndex()
+    for f in faces: idx.add(f)
+    par = list(range(len(faces)))
+    def root(i):
+        while par[i] != i: par[i] = par[par[i]]; i = par[i]
+        return i
+    for i in range(1, m.Extent() + 1):
+        fs = [idx.find(x) for x in m.FindFromIndex(i)]; fs = [j for j in fs if j >= 0]
+        if len(fs) > 1 and skip is not None and skip(to_edge(m.FindKey(i))): continue
+        for j in fs[1:]: par[root(j)] = root(fs[0])
+    groups = {}
+    for i in range(len(faces)): groups.setdefault(root(i), []).append(faces[i])
+    return list(groups.values())
+
+def trim_tool_from_curve(edge, n, size):
+    """A sketch curve turned into a cutting wall along its sketch normal."""
+    return BRepPrimAPI_MakePrism(translated(edge, n*(-size)), gp_Vec(n.x*2*size, n.y*2*size, n.z*2*size)).Shape()
+
+def split_pieces(target, tools):
+    """Split a surface by tools; returns connected pieces (each a face or shell), in a stable order."""
+    sp = BOPAlgo_Splitter(); sp.AddArgument(target)
+    for t in tools: sp.AddTool(t)
+    sp.Perform()
+    if sp.HasErrors(): raise RuntimeError("couldn't trim with that tool")
+    faces = subshapes(sp.Shape(), TopAbs_FACE); tc = compound(list(tools))
+    def on_tool(e):
+        c = BRepAdaptor_Curve(e); q = c.Value((c.FirstParameter() + c.LastParameter())/2)
+        return shape_dist(tc, BRepBuilderAPI_MakeVertex(q).Vertex()) < 1e-5
+    pieces = [compound(g) if len(g) > 1 else g[0] for g in face_groups(faces, on_tool)]
+    pieces = [sew([p], solid_if_closed=False) if p.ShapeType() != TopAbs_FACE else p for p in pieces]
+    pieces.sort(key=lambda p: tuple(round(x, 4) for x in centroid(p).t()))
+    return pieces
+
+def piece_at(pieces, q):
+    v = BRepBuilderAPI_MakeVertex(pnt(q)).Vertex()
+    return min(range(len(pieces)), key=lambda i: shape_dist(pieces[i], v))
+
+def untrim_face(face, mode="loops", ext=0.0):
+    """mode 'loops': fill the holes; 'all': back to the surface's natural boundary (planes / infinite surfaces grow by ext)."""
+    face = to_face(face)
+    if mode == "loops":
+        mk = BRepBuilderAPI_MakeFace(st(BRep_Tool, "Surface")(face), outer_wire(face), True)
+        f = mk.Face()
+        if face.Orientation() == TopAbs_REVERSED: f = to_face(f.Reversed())
+        fix = ShapeFix_Face(f); fix.Perform(); return fix.Face()
+    srf = BRepAdaptor_Surface(face); u0, u1, v0, v1 = BRepTools.UVBounds_s(face)
+    tp = srf.GetType()
+    if tp == GeomAbs_Plane:
+        lo, hi = bbox(face); m = max(ext, 0.0)
+        c, n = face_frame(face); pl = srf.Plane()
+        f = BRepBuilderAPI_MakeFace(pl, u0 - m, u1 + m, v0 - m, v1 + m).Face()
+    else:
+        U0, U1, V0, V1 = srf.FirstUParameter(), srf.LastUParameter(), srf.FirstVParameter(), srf.LastVParameter()
+        big = 1e6
+        if abs(U0) > big or abs(U1) > big: U0, U1 = u0 - ext, u1 + ext
+        if abs(V0) > big or abs(V1) > big: V0, V1 = v0 - ext, v1 + ext
+        f = BRepBuilderAPI_MakeFace(st(BRep_Tool, "Surface")(face), U0, U1, V0, V1, 1e-6).Face()
+    if face.Orientation() == TopAbs_REVERSED: f = to_face(f.Reversed())
+    return f
+
+def replace_faces(shape, mapping, sew_after=True):
+    """New shape with some faces swapped (mapping: list of (old face, new face or None to delete))."""
+    rs = BRepTools_ReShape()
+    for old, new in mapping:
+        if new is None: rs.Remove(old)
+        else: rs.Replace(old, new)
+    out = rs.Apply(shape)
+    if sew_after and len(subshapes(out, TopAbs_FACE)) > 1: out = sew([out], solid_if_closed=False)
+    return out
+
+def extend_edges(shape, edge_list, d, kind="natural"):
+    """Extend a surface past some of its open edges by d."""
+    strips, mapping, done = [], [], ShapeIndex()
+    for e in edge_list:
+        fs = faces_of_edge_in(shape, e)
+        if len(fs) != 1: raise RuntimeError("only open (boundary) edges of a surface can be extended")
+        f = fs[0]
+        if kind == "natural":
+            g = _natural_extend(f, e, d)
+            if g is not None and done.find(f) < 0:
+                done.add(f); mapping.append((f, g)); continue
+        strips.append(ruled_strip(e, f, d, "tangent" if kind != "perpendicular" else "normal"))
+    out = replace_faces(shape, mapping, sew_after=False) if mapping else shape
+    out = sew([out] + strips, solid_if_closed=False) if strips or mapping else out
+    return clean(out)
+
+def _natural_extend(f, e, d):
+    """Grow the face along the surface past edge e when e lies on the face's natural UV boundary; else None."""
+    srf = BRepAdaptor_Surface(f); u0, u1, v0, v1 = BRepTools.UVBounds_s(f)
+    natural = BRepBuilderAPI_MakeFace(st(BRep_Tool, "Surface")(f), u0, u1, v0, v1, 1e-6).Face()
+    if abs(surface_area(natural) - surface_area(f)) > 1e-4*max(surface_area(f), 1e-9): return None
+    c = BRepAdaptor_Curve(e); pm = vec(c.Value((c.FirstParameter() + c.LastParameter())/2))
+    pr = GeomAPI_ProjectPointOnSurf(pnt(pm), st(BRep_Tool, "Surface")(f))
+    if not pr.NbPoints(): return None
+    u, v = pr.LowerDistanceParameters(); tu, tv = (u1 - u0)*1e-4 + 1e-9, (v1 - v0)*1e-4 + 1e-9
+    side = (abs(u - u0) < tu, abs(u - u1) < tu, abs(v - v0) < tv, abs(v - v1) < tv)
+    if sum(side) != 1: return None
+    g = TopoDS_Face(); BRepLib.ExtendFace_s(natural, d, *side, g)
+    if g.IsNull(): return None
+    if f.Orientation() == TopAbs_REVERSED: g = to_face(g.Reversed())
+    return g
+
+def reversed_faces(shape, faces=None):
+    """Flip the normals of some (or all) faces."""
+    if faces is None: return shape.Reversed()
+    from OCP.TopoDS import TopoDS_Shell
+    sh, bb = TopoDS_Shell(), BRep_Builder(); bb.MakeShell(sh)
+    for f in subshapes(shape, TopAbs_FACE): bb.Add(sh, f.Reversed() if any(f.IsSame(x) for x in faces) else f)
+    return sh
+
+def delete_faces_open(shape, faces):
+    """Remove faces without healing - solids become open surfaces."""
+    keep = [f for f in subshapes(shape, TopAbs_FACE) if all(not f.IsSame(x) for x in faces)]
+    if not keep: return []
+    return [sew(g, solid_if_closed=False) if len(g) > 1 else g[0] for g in face_groups(keep)]
+
+def _emid(e):
+    c = BRepAdaptor_Curve(e); return vec(c.Value((c.FirstParameter() + c.LastParameter())/2))
+
+def edge_same_geom(a, b, tol=1e-6):
+    pa, qa = edge_ends(a); pb, qb = edge_ends(b)
+    return (_emid(a) - _emid(b)).Length < tol and min((pa - pb).Length + (qa - qb).Length, (pa - qb).Length + (qa - pb).Length) < 2*tol
+
+def chain_from_pool(seed, pool, tol=1e-5):
+    """Seed edges plus every pool edge connected to them end to end."""
+    out = list(seed); ends = [edge_ends(e) for e in out]; rest = [e for e in pool if not any(e.IsSame(x) or edge_same_geom(e, x) for x in out)]
+    grew = True
+    while grew:
+        grew = False
+        for e in list(rest):
+            p, q = edge_ends(e)
+            if any(min((p - a).Length, (p - b).Length, (q - a).Length, (q - b).Length) < tol for a, b in ends):
+                out.append(e); ends.append((p, q)); rest.remove(e); grew = True
+    return out
+
+# ---------------------------------------------------------------------------------------------------------------
 #  Model objects
 # ---------------------------------------------------------------------------------------------------------------
 class Body:
@@ -3660,9 +4278,13 @@ class Body:
         s.se = np.concatenate([e for _, _, e in segs]) if segs else np.zeros(0, dtype=int)
         s.verts = np.array([st(BRep_Tool, "Pnt")(v).Coord() for v in subshapes(shape, TopAbs_VERTEX)]) if subshapes(shape, TopAbs_VERTEX) else np.zeros((0, 3))
         s.color, s.material, s.face_colors = None, None, {}
+        s.surface = is_surface_shape(shape)                                # open (zero-thickness) body
 
     def copy_look(s, o):
+        s.comp = getattr(o, "comp", None)
+        if getattr(o, "sheet", None): s.sheet = o.sheet
         s.color, s.material, s.face_colors = o.color, o.material, {}
+        s.name = getattr(o, "name", None)
         return s
 
     def restyled(s):
@@ -3845,7 +4467,7 @@ def form_dialog(parent, title, fields, note=None):
 #  ViewCube
 # ---------------------------------------------------------------------------------------------------------------
 class ViewCube(W.QWidget):
-    """fission-style ViewCube: shows the orientation; click a face, an edge or a corner to look from that direction,
+    """Fusion-style ViewCube: shows the orientation; click a face, an edge or a corner to look from that direction,
     house = home view, curved arrows turn the model 90 degrees left / right."""
     NAMES = {(0, 0, 1): "TOP", (0, 0, -1): "BOTTOM", (0, -1, 0): "FRONT", (0, 1, 0): "BACK", (1, 0, 0): "RIGHT", (-1, 0, 0): "LEFT"}
     CX, CY, K, EDGE = 75, 64, 30, 0.62               # edge / corner strips are the outer 38% of each face
@@ -3916,6 +4538,9 @@ class ViewCube(W.QWidget):
             s.setToolTip({"HOME": "Home view", "ROTL": "Turn the view 90° left", "ROTR": "Turn the view 90° right"}.get(h, "")
                          if not isinstance(h, tuple) else s.describe(h))
     def leaveEvent(s, _): s.hov = None; s.update()
+    def contextMenuEvent(s, e):
+        w = s.vp.window()
+        if hasattr(w, "cube_menu"): w.cube_menu(e.globalPos())
     def mousePressEvent(s, e):
         h = s.hit(e.position())
         if h == "HOME": s.vp.home()
@@ -3976,11 +4601,14 @@ def sketch_curve_edge(sk, ci):
 class SolidMixin:
     # ---------------- reference resolution ----------------
     def span(s):
-        return model_span([b.shape for b in s.bodies]) if s.bodies else 200.0
+        if not s.bodies: return 200.0
+        lo = np.min([b.lo.t() for b in s.bodies], 0); hi = np.max([b.hi.t() for b in s.bodies], 0)
+        return max(float(np.linalg.norm(hi - lo)), 10.0)
 
     def ref_point(s, r):
         k = r[0]
         if k == "origin": return V()
+        if k == "spot": return V(*r[3])
         if k == "vertex": return V(*s.bodies[r[1]].verts[r[2]])
         if k == "spoint": sk = s.sketches[r[1]]; return sk.plane.w(sketch_points(sk)[r[2]])
         if k == "cpoint": return s.cons[r[1]]["p"]
@@ -4244,6 +4872,9 @@ class SolidMixin:
         if hit:
             bi, fid = hit[0], hit[1]; o, d = s.ray(p); q = o + d*hit[3]; fr = ("face", bi, fid, (q.x, q.y, q.z))
             b = s.bodies[bi]
+            if getattr(b, "mesh", False):                              # a mesh is picked as a whole
+                return ("spot", bi, fid, (q.x, q.y, q.z)) if "spot" in kinds else ("body", bi) if "body" in kinds else None
+            if "spot" in kinds: return ("spot", bi, fid, (q.x, q.y, q.z))
             if "face" in kinds: return fr
             if "pface" in kinds and b.face_normal(fid) is not None: return fr
             if "plane" in kinds and b.face_normal(fid) is not None: return fr
@@ -4339,6 +4970,10 @@ class SolidMixin:
 
     # ---------------- dry runs (previews) ----------------
     def dry_run(s, op):
+        asm0 = s.asm_state(); ac0 = s.active_comp
+        try: return s.dry_run_core(op)
+        finally: s.asm_apply(asm0); s.active_comp = ac0
+    def dry_run_core(s, op):
         saved = (list(s.bodies), list(s.features), list(s.cons), list(s.sketches), s.active,
                  [(k, k.geo, k.visible) for k in s.sketches], list(s.canv))
         try:
@@ -4540,9 +5175,327 @@ class SolidMixin:
             if part.isdigit(): out.add(int(part))
         return out
 
+    # ---------------- surface modelling ----------------
+    def ref_edges(s, refs, chain=True, loop=False):
+        """Model edges for curve / edge / profile picks, optionally grown into connected chains.
+        Returns [(edge, body index or None)]. loop: chain body edges round an open boundary (for patches)."""
+        out, seen = [], []
+        def add(e, src):
+            if any(e.IsSame(x) for x, _ in out): return
+            out.append((e, src))
+        for r in refs:
+            k = r[0]
+            if k == "profile":
+                for e in subshapes(s.ref_face(r), TopAbs_EDGE): add(e, None)
+                continue
+            if k == "curve":
+                sk = s.sketches[r[1]]; g = sk.geo
+                pool = [(j, e) for j, c in enumerate(g.C) if not c.get("cons") and c["k"] not in ("point", "text") for e in crv_edges(g, j, sk.plane)] \
+                    if chain else []
+                seed = [e for j, e in pool if j == r[2]] or [s.ref_edge(r)]
+                for e in (chain_from_pool(seed, [e for _, e in pool]) if chain else seed): add(e, None)
+                continue
+            if k == "edge":
+                b = s.bodies[r[1]]; e0 = b.eds[r[2]]
+                if not chain: add(e0, r[1]); continue
+                if loop:
+                    fe = free_edges(b.shape)
+                    if any(e0.IsSame(x) for x in fe):
+                        for e in chain_from_pool([e0], fe): add(e, r[1])
+                        continue
+                for i in tangent_chain(b, r[2]): add(b.eds[i], r[1])
+                continue
+            add(s.ref_edge(r), None)
+        if not out: raise RuntimeError("pick some curves or edges")
+        return out
+
+    def ref_sections(s, refs, chain=True):
+        """Loft sections: one wire per picked curve chain / profile, or a point."""
+        secs, used = [], []
+        for r in refs:
+            if r[0] in ("spoint", "vertex", "cpoint", "origin"):
+                secs.append(BRepBuilderAPI_MakeVertex(pnt(s.ref_point(r))).Vertex()); continue
+            if r[0] == "profile": secs.append(wires_of(s.ref_face(r))[0]); continue
+            es = [e for e, _ in s.ref_edges([r], chain)]
+            if any(any(e.IsSame(u) or edge_same_geom(e, u) for u in used) for e in es): continue
+            used += es; ws = edges_to_wires(es)
+            if len(ws) != 1: raise RuntimeError("each loft section must be one connected curve")
+            secs.append(ws[0])
+        return secs
+
+    def surf_dir(s, refs, dirref=None, chain=True):
+        """Extrude direction: the picked plane / axis, else the sketch's normal, else the plane the edges lie in."""
+        if dirref:
+            r = dirref
+            if r[0] in ("oplane", "cplane", "profile") or (r[0] == "face" and s.bodies[r[1]].face_normal(r[2]) is not None): return s.ref_plane(r).n
+            return s.ref_axis(r)[1]
+        r = refs[0]
+        if r[0] in ("profile", "curve"): return s.sketches[r[1]].plane.n
+        if r[0] == "face": return face_frame(s.ref_face(r))[1]
+        ws = edges_to_wires([e for e, _ in s.ref_edges(refs, chain)])
+        n = wire_plane_normal(ws[0]) if ws else None
+        if n is None: raise RuntimeError("those edges aren't flat - pick a direction (a plane or axis)")
+        return n
+
+    def add_surface(s, shape, name, refs=()):
+        s.bodies.append(Body(shape)); s.add_feature(name, shape, "New")
+        if refs: s.hide_sketches_of(list(refs))
+
+    def set_body_shapes(s, bi, shapes):
+        old = s.bodies[bi]; s.bodies[bi:bi + 1] = [Body(x).copy_look(old) for x in shapes]
+
+    def group_by_body(s, refs, kinds=("face",)):
+        out = {}
+        for r in refs:
+            if r[0] == "body": out.setdefault(r[1], None)
+            elif r[0] in kinds:
+                cur = out.setdefault(r[1], [])
+                if cur is not None: cur.append(r)
+        return out
+
+    def exec_surface(s, op):
+        t = op["t"]; chain = op.get("chain", True)
+        if t == "s_extrude":
+            edges = [e for e, _ in s.ref_edges(op["profiles"], chain)]; n = s.surf_dir(op["profiles"], op.get("dirref"), chain)
+            d = op["d"]; d2 = {"one": 0.0, "two": op.get("d2", 0.0), "sym": d}[op.get("dir", "one")]
+            sh = surf_extrude(edges, n, d, d2, op.get("taper", 0.0)); s.add_surface(sh, "Surface extrude", op["profiles"]); return
+        if t == "s_revolve":
+            o, ax = s.ref_axis(op["axis"]); ang = 360.0 if op.get("extent") == "full" else op["angle"]
+            sh = surf_revolve([e for e, _ in s.ref_edges(op["profiles"], chain)], o, ax, ang)
+            s.add_surface(sh, "Surface revolve", op["profiles"] + [op["axis"]]); return
+        if t == "s_sweep":
+            path = chain_wire([e for e, _ in s.ref_edges(op["path"], chain)])
+            sh = surf_sweep([e for e, _ in s.ref_edges(op["profiles"], chain)], path, op.get("orient", "perp"))
+            s.add_surface(sh, "Surface sweep", op["profiles"] + op["path"]); return
+        if t == "s_loft":
+            sh = surf_loft(s.ref_sections(op["sections"], chain), op.get("closed", False), op.get("ruled", False))
+            s.add_surface(sh, "Surface loft", op["sections"]); return
+        if t == "patch":
+            pairs = s.ref_edges(op["boundary"], chain, loop=True); sup = []
+            for e, bi in pairs:
+                if bi is not None:
+                    fs = faces_of_edge_in(s.bodies[bi].shape, e)
+                    if len(fs) == 1: sup.append((e, fs[0]))
+            sh = surf_patch([e for e, _ in pairs], sup, op.get("cont", "G0"), [s.ref_point(r).t() for r in op.get("points", [])])
+            s.add_surface(sh, "Patch", op["boundary"]); return
+        if t == "ruled":
+            kind = op.get("kind", "tangent"); dv = s.surf_dir([], op["dirref"]) if kind == "direction" else None
+            if kind == "direction" and not op.get("dirref"): raise RuntimeError("pick the direction (a plane or axis)")
+            strips = []
+            for e, bi in s.ref_edges(op["edges"], chain):
+                f = None
+                if bi is not None:
+                    fs = faces_of_edge_in(s.bodies[bi].shape, e); f = fs[0] if fs else None
+                strips.append(ruled_strip(e, f, op["d"], kind, op.get("ang", 0.0), dv, op.get("flip", False)))
+            sh = sew(strips, solid_if_closed=False) if len(strips) > 1 else strips[0]
+            s.add_surface(sh, "Ruled surface"); return
+        if t == "s_offset":
+            faces = []
+            for r in op["faces"]:
+                faces += list(s.bodies[r[1]].faces) if r[0] == "body" else [s.ref_face(r)]
+            s.add_surface(surf_offset(faces, op["d"]), "Offset surface"); return
+        if t == "trim":
+            spots = {}
+            for r in op["remove"]: spots.setdefault(r[1], []).append(V(*r[3]))
+            if not spots: raise RuntimeError("click the parts of the surfaces to remove")
+            tr = op["tool"]; tool_bi = tr[1] if tr[0] in ("body", "face") else None
+            if tr[0] == "curve":
+                sk = s.sketches[tr[1]]; base = [trim_tool_from_curve(e, sk.plane.n, s.span()*2) for e in crv_edges(sk.geo, tr[2], sk.plane)]
+                s.hide_sketches_of([tr])
+            elif tr[0] == "edge": raise RuntimeError("use a surface, plane, face or sketch curve as the trimming tool")
+            else: base = [s.ref_tool_shape(tr)]
+            for bi in sorted(spots, reverse=True):
+                b = s.bodies[bi]
+                if not b.surface: raise RuntimeError("Trim works on surface bodies - use Split Body for solids")
+                tools = [x for x in base] if bi != tool_bi else []
+                tools += [s.bodies[j].shape for j in spots if j != bi and j != tool_bi]
+                if bi == tool_bi and not tools: raise RuntimeError("also click the part of the other surface to trim the tool by it")
+                pcs = split_pieces(b.shape, tools)
+                if len(pcs) < 2: raise RuntimeError("the tool doesn't cut that surface into pieces")
+                drop = {piece_at(pcs, q) for q in spots[bi]}; keep = [p for i, p in enumerate(pcs) if i not in drop]
+                if not keep: del s.bodies[bi]; continue
+                s.set_body_shapes(bi, [sew(keep, solid_if_closed=False) if len(keep) > 1 else keep[0]])
+            return
+        if t == "untrim":
+            for bi, refs in sorted(s.group_by_body(op["faces"]).items(), reverse=True):
+                b = s.bodies[bi]; faces = list(b.faces) if refs is None else [b.faces[r[2]] for r in refs]
+                if not b.surface: raise RuntimeError("Untrim works on surface bodies")
+                m = [(f, untrim_face(f, op.get("mode", "loops"), op.get("ext", 0.0))) for f in faces]
+                s.set_body_shapes(bi, [replace_faces(b.shape, m)])
+            return
+        if t == "s_extend":
+            groups = {}
+            for e, bi in s.ref_edges(op["edges"], chain):
+                if bi is None: raise RuntimeError("pick edges of a surface body")
+                groups.setdefault(bi, []).append(e)
+            for bi, es in sorted(groups.items(), reverse=True):
+                b = s.bodies[bi]
+                if not b.surface: raise RuntimeError("Extend works on surface bodies")
+                s.set_body_shapes(bi, [extend_edges(b.shape, es, op["d"], op.get("kind", "natural"))])
+            return
+        if t == "stitch":
+            idx = sorted({r[1] for r in op["sbodies"]})
+            if not idx: raise RuntimeError("pick the surfaces to stitch")
+            sh = sew([s.bodies[i].shape for i in idx], op.get("tol", 0.01)); look = s.bodies[idx[0]]
+            for i in reversed(idx): del s.bodies[i]
+            s.bodies.append(Body(sh).copy_look(look)); return
+        if t == "unstitch":
+            for bi, refs in sorted(s.group_by_body(op["faces"]).items(), reverse=True):
+                b = s.bodies[bi]; pick = list(b.faces) if refs is None else [b.faces[r[2]] for r in refs]
+                rest = [f for f in b.faces if all(not f.IsSame(x) for x in pick)]
+                shapes = [sew(g, solid_if_closed=False) if len(g) > 1 else g[0] for g in face_groups(rest)] + list(pick)
+                s.set_body_shapes(bi, shapes)
+            return
+        if t == "revnormal":
+            for bi, refs in sorted(s.group_by_body(op["targets"]).items(), reverse=True):
+                b = s.bodies[bi]
+                if not b.surface: raise RuntimeError("Reverse Normal works on surface bodies")
+                s.set_body_shapes(bi, [reversed_faces(b.shape, None if refs is None else [b.faces[r[2]] for r in refs])])
+            return
+        if t == "s_delface":
+            for bi, refs in sorted(s.group_by_body(op["faces"]).items(), reverse=True):
+                b = s.bodies[bi]
+                if refs is None: del s.bodies[bi]; continue
+                pcs = delete_faces_open(b.shape, [b.faces[r[2]] for r in refs])
+                if not pcs: del s.bodies[bi]
+                else: s.set_body_shapes(bi, [compound(pcs) if len(pcs) > 1 else pcs[0]])
+            return
+        raise RuntimeError(f"unknown surface operation {t}")
+
+    # ---------------- mesh workspace + file import (0.7) ----------------
+    def mesh_at(s, bi, need=True):
+        b = s.bodies[bi]
+        if need and not getattr(b, "mesh", False): raise RuntimeError("pick mesh bodies (Insert Mesh, or Tessellate a solid first)")
+        return b
+
+    def mesh_targets(s, refs, need=True):
+        idx = sorted({r[1] for r in refs if r and r[0] in ("body", "face")})
+        if not idx: raise RuntimeError("pick a body")
+        for i in idx: s.mesh_at(i, need)
+        return idx
+
+    def exec_mesh(s, op):
+        t = op["t"]
+        if t == "meshimport":
+            T = unpack_arr(op["data"]).astype(float)*op.get("scale", 1.0)
+            if op.get("center"):
+                P = T.reshape(-1, 3); c = (P.min(0) + P.max(0))/2; c[2] = P[:, 2].min(); T = T - c
+            if op.get("yup"): T = T[:, :, [0, 2, 1]]*np.array([1.0, -1.0, 1.0])            # Y-up file -> Z-up (a rotation)
+            s.bodies.append(MeshBody(T, op.get("name"))); return
+        if t == "cadimport":
+            sh = brep_text_to_shape(unpack_text(op["brep"]))
+            if op.get("scale", 1.0) != 1.0:
+                k = op["scale"]; sh = transformed(sh, [[k, 0, 0, 0], [0, k, 0, 0], [0, 0, k, 0]])
+            parts = split_imported(sh)
+            if not parts: raise RuntimeError("that file has no solids or surfaces in it")
+            base = op.get("name") or "Import"
+            for i, (x, kind) in enumerate(parts):
+                b = Body(x); b.name = base if len(parts) == 1 else f"{base} {i + 1}"; s.bodies.append(b)
+            s.add_feature(f"Import {base}", compound([x for x, _ in parts]), "New"); return
+        if t == "tessellate":
+            for bi in reversed(s.mesh_targets(op["targets"], need=False)):
+                b = s.bodies[bi]
+                if getattr(b, "mesh", False): continue
+                defl, ang = mesh_quality(b.shape, op.get("q", "med"), op.get("defl", 0.05), op.get("ang", 15.0))
+                mb = MeshBody(tessellate(b.shape, defl, math.radians(ang)), getattr(b, "name", None)); mb.color, mb.material = b.color, b.material
+                if op.get("keep"): s.bodies.append(mb); b2 = b.restyled(); b2.visible = False; s.bodies[bi] = b2
+                else: s.bodies[bi] = mb
+            return
+        if t == "meshconvert":
+            for bi in reversed(s.mesh_targets(op["targets"])):
+                b = s.bodies[bi]; T = b.tv
+                if len(T) > MESH_CONVERT_MAX: raise RuntimeError(f"that mesh has {len(T):,} triangles - Reduce it below {MESH_CONVERT_MAX:,} first")
+                sh = mesh_to_brep(T, merge_planar=op.get("method", "prismatic") == "prismatic")
+                if sh is None or not subshapes(sh, TopAbs_FACE): raise RuntimeError("couldn't convert that mesh")
+                nb = Body(sh); nb.color, nb.material, nb.name = b.color, b.material, getattr(b, "name", None); s.bodies[bi] = nb
+            return
+        if t in ("mrev", "mrepair", "msmooth", "mreduce"):
+            for bi in s.mesh_targets(op["targets"]):
+                b = s.bodies[bi]; T = b.tv
+                if t == "mrev": T2 = T[:, [0, 2, 1]]
+                elif t == "mrepair": T2 = repair_mesh(T, op.get("holes", True))
+                elif t == "msmooth": T2 = taubin_smooth(T, op.get("iters", 10), 0.33 + 0.3*op.get("strength", 0.5))
+                else: T2 = cluster_reduce(T, max(0.01, min(1.0, op.get("pct", 50.0)/100.0)))
+                if not len(T2): raise RuntimeError("nothing would be left of that mesh")
+                s.bodies[bi] = s.mesh_like(b, T2)
+            return
+        if t == "msep":
+            for bi in reversed(s.mesh_targets(op["targets"])):
+                b = s.bodies[bi]; Vv, F = weld(b.tv); comps = components(F, len(Vv))
+                if len(comps) < 2: continue
+                comps.sort(key=lambda c: -len(c))
+                s.bodies[bi:bi + 1] = [s.mesh_like(b, Vv[F[c]], f"{getattr(b, 'name', None) or 'Mesh'} {k + 1}") for k, c in enumerate(comps)]
+            return
+        if t == "mcut":
+            pl = s.ref_plane(op["plane"])
+            n = pl.n*(-1 if op.get("flip") else 1); keep = op.get("keep", "below")
+            for bi in reversed(s.mesh_targets(op["targets"])):
+                b = s.bodies[bi]; out = []
+                for below in ((True, False) if keep == "both" else ((keep == "below"),)):
+                    T2, segs = clip_by_plane(b.tv, pl.o, n, below)
+                    if op.get("cap", True) and segs:
+                        loops = [L for L in chain_segments(segs) if len(L) > 3 and np.linalg.norm(L[0] - L[-1]) < 1e-6*(1 + np.ptp(L, 0).max())]
+                        cap = cap_loops(loops, n if below else -n)
+                        if len(cap): T2 = np.concatenate([T2, cap])
+                    if len(T2): out.append(T2)
+                if not out: raise RuntimeError("the plane doesn't leave anything of that mesh")
+                s.bodies[bi:bi + 1] = [s.mesh_like(b, T2, (getattr(b, "name", None) if k == 0 else None)) for k, T2 in enumerate(out)]
+            return
+        if t == "mcombine":
+            ti = op["target"][1]; tools = sorted({r[1] for r in op["tools"] if r[1] != ti}, reverse=True)
+            if not tools: raise RuntimeError("pick the tool bodies")
+            tb = s.bodies[ti]; how = op.get("op", "merge")
+            if how == "merge":
+                T = np.concatenate([tb.tv] + [s.bodies[i].tv for i in tools])
+            else:
+                for i in [ti] + tools:
+                    if len(s.bodies[i].tv) > MESH_CONVERT_MAX: raise RuntimeError(f"Join / Cut / Intersect need meshes under {MESH_CONVERT_MAX:,} triangles - Reduce them first")
+                sh = s.bodies[ti].shape
+                for i in tools: sh = boolean(sh, s.bodies[i].shape, {"join": "fuse", "cut": "cut", "intersect": "common"}[how])
+                T = tessellate(sh, 0.01, 0.5)
+                if not len(T): raise RuntimeError("nothing is left after that combine")
+            s.bodies[ti] = s.mesh_like(tb, T)
+            if not op.get("keep"):
+                for i in tools: del s.bodies[i]
+            return
+        if t == "msection":
+            pl = s.ref_plane(op["plane"]); bi = s.mesh_targets([op["target"]], need=False)[0]; b = s.bodies[bi]
+            T = b.tv if getattr(b, "mesh", False) else tessellate(b.shape, 0.02, 0.3)
+            lines = chain_segments(section_segments(T, pl.o, pl.n))
+            if not lines: raise RuntimeError("the plane doesn't cross that body")
+            g = Geo(); tol = op.get("tol", 0.05)
+            for L in lines:
+                closed = len(L) > 3 and np.linalg.norm(L[0] - L[-1]) < 1e-6*(1 + np.ptp(L, 0).max())
+                P = simplify_polyline(L, tol) if tol > 0 else L
+                loc = [pl.l(V(*map(float, q))) for q in P]
+                if closed and len(loc) > 2 and (loc[0] - loc[-1]).Length < 1e-9: loc = loc[:-1]
+                if closed:                                                   # the loop's seam point may sit mid-edge
+                    k = 0
+                    while len(loc) > 3 and k < len(loc):
+                        a_, b_, c_ = loc[k - 1], loc[k], loc[(k + 1) % len(loc)]; ac = c_ - a_
+                        if ac.Length > 1e-12 and (b_ - a_).cross(ac).Length/ac.Length <= max(tol, 1e-9): del loc[k]
+                        else: k += 1
+                if len(loc) < 2: continue
+                ids = [g.add_pt(q.x, q.y) for q in loc]
+                for a, c in zip(ids, ids[1:] + ([ids[0]] if closed and len(ids) > 2 else [])): g.add("line", [a, c])
+            if not g.C: raise RuntimeError("the section is too small at that tolerance")
+            g.touch(); sk = Sketch(pl, None, g); sk.name = f"Section of {getattr(b, 'name', None) or 'Body' + str(bi + 1)}"
+            s.sketches.append(sk); s.active = sk; return
+        raise RuntimeError(f"unknown mesh operation {t}")
+
+    def mesh_like(s, b, T, name=None):
+        mb = MeshBody(T, name if name is not None else getattr(b, "name", None)); mb.color, mb.material = b.color, b.material
+        mb.visible = b.visible; return mb
+
     def exec_solid(s, op):
         """New-style operations. Returns True when op was handled here."""
         t = op["t"]
+        if t in SURF_OPS: s.exec_surface(op); return True
+        if t in MESH_OPS: s.exec_mesh(op); return True
+        if t in ASM_OPS: s.exec_asm(op); return True
+        if t in SM_OPS: s.exec_sheet(op); return True
+        if t in PL_OPS: s.exec_plastic(op); return True
+        if t == "bodyname": nb = s.bodies[op["bi"]].restyled(); nb.name = op["name"]; s.bodies[op["bi"]] = nb; return True
         if t == "extrude" and "profiles" in op: s.exec_extrude2(op); return True
         if t == "revolve" and "profiles" in op: s.exec_revolve2(op); return True
         if t == "construct": s.exec_construct(op); return True
@@ -4745,6 +5698,9 @@ class SolidMixin:
         if t == "scale":
             for r in op["bodies"]:
                 bi = r[1]; b = s.bodies[bi]; c = s.ref_point(op["point"]) if op.get("point") else (b.lo + b.hi)*0.5
+                if getattr(b, "mesh", False):
+                    k = np.array([op["sx"], op["sy"], op["sz"]] if op.get("type") == "nonuniform" else [op["s"]]*3, float); cc = np.array(c.t())
+                    s.bodies[bi] = s.mesh_like(b, (b.tv - cc)*k + cc); continue
                 if op.get("type") == "nonuniform": sh = scaled(b.shape, c, op["sx"], op["sy"], op["sz"])
                 else: sh = scaled(b.shape, c, op["s"])
                 s.bodies[bi] = Body(sh)
@@ -4803,7 +5759,7 @@ class SolidMixin:
             else:
                 p, d = s.ref_axis(op["axis"]); v = d*op["dist"]; M = [[1, 0, 0, v.x], [0, 1, 0, v.y], [0, 0, 1, v.z]]
             for bi in bis:
-                nb = Body(transformed(s.bodies[bi].shape, M)); nb.copy_look(s.bodies[bi])
+                nb = xform_body(s.bodies[bi], M)
                 if op.get("copy"): s.bodies.append(nb)
                 else: s.bodies[bi] = nb
             return True
@@ -4811,7 +5767,7 @@ class SolidMixin:
             src, dst = op["from"], op["to"]; bi = src[1] if src[0] in ("face", "edge", "vertex", "body") else None
             if bi is None: raise RuntimeError("the first selection must be on the body you want to move")
             M = s.align_matrix(src, dst, op.get("flip"))
-            nb = Body(transformed(s.bodies[bi].shape, M)); nb.copy_look(s.bodies[bi])
+            nb = xform_body(s.bodies[bi], M)
             if op.get("copy"): s.bodies.append(nb)
             else: s.bodies[bi] = nb
             return True
@@ -6105,7 +7061,7 @@ class SketchMixin:
         if t == "coin" and kinds == ["p", "p"]:
             i, j = items[0][1], items[1][1]
             if i == j: return
-            def f(g):                                            # merge the two points (fission keeps them coincident)
+            def f(g):                                            # merge the two points (Fusion keeps them coincident)
                 g.con("coin", P_(i), P_(j))
             g2, err = geo_try_add(geo, dict(t="coin", e=[P_(i), P_(j)]))
             if err: s.sk_flash(err); return
@@ -6771,7 +7727,2144 @@ def hlr_outline_2d(shape, plane, sil_only=True):
             except Exception: pass
     return out
 
-class Viewport(SketchMixin, SolidMixin, QOpenGLWidget):
+
+# ---------------------------------------------------------------------------------------------------------------
+#  Inspect & view (0.7): measure, section analysis, zebra / draft / curvature, combs, centre of mass, interference
+#  display, visual styles, orthographic camera, named views, selection filters + window selection, body display
+# ---------------------------------------------------------------------------------------------------------------
+from OCP.BRepLProp import BRepLProp_SLProps, BRepLProp_CLProps
+VSTYLES = [("Shaded with visible edges", "edges"), ("Shaded", "shaded"), ("Shaded with hidden edges", "hidden"),
+           ("Wireframe", "wire"), ("Wireframe with hidden edges", "wire_hidden")]
+ANALYSIS_OPS = ("section", "zebra", "draftan", "curvmap", "comb", "interference")
+ANA_NAMES = {"section": "Section", "zebra": "Zebra", "draftan": "Draft", "curvmap": "Curvature map", "comb": "Curvature comb"}
+MEAS_COL = (0.92, 0.45, 0.10)
+
+def farea(mm2, nd=None):
+    u = DISPLAY["unit"]; nd = nd if nd is not None else (2 if u == "mm" else 4); return f"{fmt(mm2/UNITS[u]**2, nd)} {u}²"
+def fvol(mm3, nd=None):
+    u = DISPLAY["unit"]; nd = nd if nd is not None else (2 if u == "mm" else 4); return f"{fmt(mm3/UNITS[u]**3, nd)} {u}³"
+
+def _hatch_stipple():
+    """32x32 polygon-stipple bitmap of 45-degree hatch lines (classic section hatching)."""
+    rows = []
+    for y in range(32):
+        bits = 0
+        for x in range(32):
+            if (x + y) % 8 in (0, 1): bits |= 1 << (31 - x)
+        rows.append(bits.to_bytes(4, "big"))
+    return b"".join(rows)
+HATCH = _hatch_stipple()
+
+def heat(t):
+    """0..1 -> blue, cyan, green, yellow, red."""
+    t = min(1.0, max(0.0, t)); stops = [(0.15, 0.3, 0.95), (0.1, 0.8, 0.9), (0.2, 0.8, 0.25), (0.98, 0.85, 0.15), (0.92, 0.2, 0.15)]
+    x = t*(len(stops) - 1); i = min(int(x), len(stops) - 2); f = x - i
+    a, b = stops[i], stops[i + 1]; return tuple(a[k] + (b[k] - a[k])*f for k in range(3))
+
+def body_curvatures(b):
+    """Per-triangle-vertex curvature magnitude (1/mm) of a body, in the same order as Body.tv."""
+    out = []
+    if getattr(b, "mesh", False): return mesh_vertex_curvature(b.tv)
+    for f in b.faces:
+        m = face_mesh(f)
+        if m is None: continue
+        P, T = m; vals = np.zeros(len(P))
+        try:
+            loc = TopLoc_Location(); tri = triangulation(f, loc); srf = BRepAdaptor_Surface(f)
+            if srf.GetType() != GeomAbs_Plane and tri.HasUVNodes():
+                for i in range(1, tri.NbNodes() + 1):
+                    uv = tri.UVNode(i); pr = BRepLProp_SLProps(srf, uv.X(), uv.Y(), 2, 1e-6)
+                    if pr.IsCurvatureDefined(): vals[i - 1] = max(abs(pr.MaxCurvature()), abs(pr.MinCurvature()))
+        except Exception: pass
+        out.append(vals[T])
+    return np.concatenate(out) if out else np.zeros((0, 3))
+
+class InspectMixin:
+    def insp_init(s):
+        s.ortho, s.vstyle, s.views, s.home_cam = False, "edges", {}, None
+        s.analyses, s.ana_prev, s._anacache, s._zebra_tex = [], None, {}, None
+        s.tl_groups, s.tl_ver, s.last_fails = [], 0, []
+        s.drawing_doc = None; s.disp_off = {}; s.storyboard = []; s.cam_init()
+        s.meas, s.meas_cb, s.combs, s.com_marks, s.interf = None, None, [], False, []
+        s.sel_filter, s.box, s.box_start, s.msel = {"bodies", "faces", "edges", "profiles"}, None, None, set()
+        s.origin_vis = {"XY": False, "XZ": False, "YZ": False, "axes": False}
+        s.nav_preset, s.zoom_invert = "fission", False
+
+    def insp_reset(s):
+        s.analyses, s.ana_prev, s._anacache, s.views, s.home_cam, s.interf, s.msel = [], None, {}, {}, None, [], set()
+        s.tl_groups = []; s.drawing_doc = None; s.disp_off = {}; s.storyboard = []; s.cam_init()
+        if s.meas is not None: s.meas["picks"] = []
+
+    # ---------------- camera ----------------
+    def apply_projection(s, vp):
+        asp = vp[2]/max(vp[3], 1)
+        if s.ortho:
+            h = s.dist*math.tan(math.radians(22.5)); glOrtho(-h*asp, h*asp, -h, h, -s.dist*200, s.dist*200)
+        else: gluPerspective(45, asp, s.dist/50, s.dist*2000)
+
+    def cam_state(s): return [s.yaw, s.pitch, s.dist, list(s.target.t()), s.ortho]
+    def go_cam(s, c):
+        s.target, s.dist = V(*c[3]), c[2]
+        if len(c) > 4: s.ortho = bool(c[4])
+        s.animate_to(c[0], c[1])
+
+    def look_at_selection(s):
+        """Look straight at the selected face (or the active sketch's plane)."""
+        if s.sel_face:
+            bi, fid = s.sel_face[:2]; b = s.bodies[bi]; n = b.face_normal(fid)
+            if n is None:
+                c = V(*b.tv[b.tri_face == fid].reshape(-1, 3).mean(0)); n = normal_at(b.faces[fid], c)[1]
+            s.target = V(*b.tv[b.tri_face == fid].reshape(-1, 3).mean(0)); s.look_at_plane(n); return True
+        sk = s.esk if s.skedit else s.active
+        if sk: s.look_at_plane(sk.plane.n); return True
+        return False
+
+    # ---------------- bodies: styles, opacity, analyses, sections ----------------
+    def active_analyses(s):
+        ed = s.ana_prev.get("_edit") if s.ana_prev else None
+        out = [a for i, a in enumerate(s.analyses) if a.get("visible", True) and i != ed]
+        return out + ([s.ana_prev] if s.ana_prev else [])
+
+    def analysis_preview(s, op):
+        """Live preview while an Inspect command's dialog is open (None = stop)."""
+        if op is None or op.get("t") == "interference": s.ana_prev = None; s.update(); return
+        a = {k: x for k, x in op.items() if k != "icon"}; a["_edit"] = getattr(s.window(), "_ana_edit", None)
+        s.ana_prev = a; s.update()
+
+    def section_planes(s):
+        out = []
+        for a in s.active_analyses():
+            if a["t"] != "section" or not a.get("plane"): continue
+            try:
+                pl = s.ref_plane(a["plane"]); n = pl.n*(-1 if a.get("flip") else 1); o = pl.o + pl.n*a.get("d", 0.0)
+                out.append((o, n.normalize(), a))
+            except Exception: pass
+        return out[:4]
+
+    def enable_section_clips(s, skip=None):
+        for k, (o, n, a) in enumerate(s.section_planes()):
+            if k == skip: continue
+            glClipPlane(GL_CLIP_PLANE1 + k, (-n.x, -n.y, -n.z, n.dot(o))); glEnable(GL_CLIP_PLANE1 + k)
+    def disable_section_clips(s):
+        for k in range(4): glDisable(GL_CLIP_PLANE1 + k)
+
+    def ana_targets(s, a, bi):
+        ids = a.get("bodies") or []
+        return not ids or bi in ids
+
+    def body_colors(s, bi, b):
+        """Per-vertex colours from the topmost colour analysis that covers this body (or None)."""
+        for a in reversed(s.active_analyses()):
+            if a["t"] not in ("draftan", "curvmap") or not s.ana_targets(a, bi): continue
+            if a["t"] == "draftan":
+                try: d = s.ref_axis(a["dir"][0])[1] if a.get("dir") else V(0, 0, 1)
+                except Exception:
+                    try: d = s.ref_plane(a["dir"][0]).n
+                    except Exception: d = V(0, 0, 1)
+                d = d.normalize()*(-1 if a.get("flip") else 1); ang = a.get("angle", 1.0)
+                key = ("draft", id(b), d.t(), ang)
+                if key not in s._anacache:
+                    c = np.clip(b.vn.reshape(-1, 3) @ np.array(d.t()), -1, 1); dr = 90 - np.degrees(np.arccos(c))   # draft angle
+                    col = np.empty((len(dr), 3), np.float32)
+                    col[:] = (0.98, 0.84, 0.18)                                                            # not enough draft
+                    col[dr >= ang] = (0.25, 0.75, 0.30); col[dr <= -ang] = (0.88, 0.25, 0.20)
+                    s._anacache[key] = col
+                return s._anacache[key]
+            key = ("curv", id(b), a.get("scale", "auto"))
+            if key not in s._anacache:
+                k = body_curvatures(b).reshape(-1)
+                if len(k) != len(b.tv)*3: k = np.zeros(len(b.tv)*3)
+                hi = float(a.get("max") or 0) or (np.percentile(k[k > 1e-9], 95) if (k > 1e-9).any() else 1.0)
+                t = np.log1p(k/max(hi, 1e-9)*9)/math.log(10)
+                s._anacache[key] = np.array([heat(x) for x in t], np.float32)
+            return s._anacache[key]
+        return None
+
+    def zebra_on(s, bi):
+        return any(a["t"] == "zebra" and s.ana_targets(a, bi) for a in s.active_analyses())
+
+    def zebra_texture(s):
+        if s._zebra_tex is None:
+            n = 64; img = np.zeros((n, n, 3), np.uint8)
+            yy, xx = np.mgrid[0:n, 0:n]; img[:] = np.where((((xx + yy)//3) % 2)[..., None] == 1, 25, 245).astype(np.uint8)
+            t = glGenTextures(1); glBindTexture(GL_TEXTURE_2D, t)
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR); glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR)
+            glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, n, n, 0, GL_RGB, GL_UNSIGNED_BYTE, img.tobytes()); s._zebra_tex = t
+        return s._zebra_tex
+
+    def draw_vertex_colored(s, b, col):
+        vtx = np.ascontiguousarray(b.tv.reshape(-1, 3), dtype=np.float32); nrm = np.ascontiguousarray(b.vn.reshape(-1, 3), dtype=np.float32)
+        glEnableClientState(GL_VERTEX_ARRAY); glEnableClientState(GL_NORMAL_ARRAY); glEnableClientState(GL_COLOR_ARRAY)
+        glVertexPointer(3, GL_FLOAT, 0, vtx); glNormalPointer(GL_FLOAT, 0, nrm); glColorPointer(3, GL_FLOAT, 0, np.ascontiguousarray(col))
+        glDrawArrays(GL_TRIANGLES, 0, len(vtx))
+        glDisableClientState(GL_COLOR_ARRAY); glDisableClientState(GL_NORMAL_ARRAY); glDisableClientState(GL_VERTEX_ARRAY)
+
+    def draw_body_fills(s, shown, moving, olds):
+        wire = s.vstyle in ("wire", "wire_hidden")
+        s.enable_section_clips()
+        if wire:
+            if s.vstyle == "wire_hidden":                                    # depth only, so hidden edges can be found
+                glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE)
+                for i, b in enumerate(shown):
+                    if b.visible and i != moving: glCallList(s.lists(b)[0])
+                glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE)
+            s.disable_section_clips(); return
+        trans = []
+        for i, b in enumerate(shown):
+            if not b.visible or i == moving: continue
+            op = getattr(b, "opacity", 1.0)
+            if op < 0.999: trans.append((i, b, op)); continue
+            pushed = s.push_off(i); s.draw_one_body(i, b, olds, 1.0)
+            if pushed: glPopMatrix()
+        if trans:
+            glDepthMask(GL_FALSE)
+            for i, b, op in trans:
+                pushed = s.push_off(i); s.draw_one_body(i, b, olds, op)
+                if pushed: glPopMatrix()
+            glDepthMask(GL_TRUE)
+        s.disable_section_clips()
+        s.draw_section_caps(shown, moving)
+
+    def push_off(s, i):
+        d = (getattr(s, "disp_off", None) or {}).get(i)
+        if not d or s.preview: return False
+        glPushMatrix(); glTranslated(*d); return True
+
+    def draw_one_body(s, i, b, olds, alpha):
+        sf = getattr(b, "surface", False)
+        if sf: glColorMaterial(GL_FRONT, GL_AMBIENT_AND_DIFFUSE); glMaterialfv(GL_BACK, GL_AMBIENT_AND_DIFFUSE, (0.93, 0.66, 0.38, alpha))
+        base = PREVIEW_COL if s.preview and id(b) not in olds else (b.color or BODY)
+        col = None if (s.preview and id(b) not in olds) else s.body_colors(i, b)
+        if col is not None: s.draw_vertex_colored(b, col)
+        elif not (s.preview and id(b) not in olds) and s.zebra_on(i):
+            glEnable(GL_TEXTURE_2D); glBindTexture(GL_TEXTURE_2D, s.zebra_texture()); glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE)
+            glTexGeni(GL_S, GL_TEXTURE_GEN_MODE, GL_SPHERE_MAP); glTexGeni(GL_T, GL_TEXTURE_GEN_MODE, GL_SPHERE_MAP)
+            glEnable(GL_TEXTURE_GEN_S); glEnable(GL_TEXTURE_GEN_T); glColor4f(1, 1, 1, alpha); glCallList(s.lists(b)[0])
+            glDisable(GL_TEXTURE_GEN_S); glDisable(GL_TEXTURE_GEN_T); glDisable(GL_TEXTURE_2D)
+        else:
+            glColor4f(*base, alpha); glCallList(s.lists(b)[0])
+        if sf: glColorMaterial(GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE)
+
+    def draw_section_caps(s, shown, moving):
+        planes = s.section_planes()
+        if not planes: return
+        for k, (o, n, a) in enumerate(planes):
+            s.enable_section_clips(skip=k)
+            for i, b in enumerate(shown):
+                if not b.visible or i == moving or getattr(b, "surface", False): continue
+                key = ("cap", id(b), o.t(), n.t())
+                if getattr(b, "mesh", False) and key not in s._anacache:
+                    try:
+                        loops = [L for L in chain_segments(section_segments(b.tv, o, n)) if len(L) > 3]
+                        cap = cap_loops(loops, -n) if loops else np.zeros((0, 3, 3))
+                        s._anacache[key] = (cap - np.array(n.t())*s.dist*2e-5) if len(cap) else None
+                    except Exception: s._anacache[key] = None
+                if key not in s._anacache:
+                    try:
+                        cut = boolean(b.shape, big_plane_face(o, n, s.span()*4), "common")
+                        tris = []
+                        BRepMesh_IncrementalMesh(cut, b.defl, False, 0.3, True)
+                        for f in subshapes(cut, TopAbs_FACE):
+                            m = face_mesh(f)
+                            if m: tris.append(m[0][m[1]])
+                        s._anacache[key] = (np.concatenate(tris) - np.array(n.t())*s.dist*2e-5) if tris else None
+                    except Exception: s._anacache[key] = None
+                tri = s._anacache[key]
+                if tri is None: continue
+                col = b.color or BODY
+                glEnable(GL_LIGHTING); glNormal3f(*n.t()); glColor3f(*(c*0.85 for c in col)); s.tris_array(tri)
+                if a.get("hatch", True):
+                    glDisable(GL_LIGHTING); glEnable(GL_POLYGON_STIPPLE); glPolygonStipple(HATCH)
+                    glEnable(GL_POLYGON_OFFSET_FILL); glPolygonOffset(-1, -1); glColor3f(*(c*0.45 for c in col)); s.tris_array(tri)
+                    glDisable(GL_POLYGON_STIPPLE); glPolygonOffset(1, 1)
+            s.disable_section_clips()
+        glDisable(GL_LIGHTING)
+
+    def draw_body_edges(s, shown, moving):
+        if s.vstyle == "shaded": return
+        s.enable_section_clips()
+        wire = s.vstyle == "wire"
+        if wire: glDisable(GL_DEPTH_TEST)
+        glColor3f(*EDGE); glLineWidth(1.3)
+        for i, b in enumerate(shown):
+            if b.visible and i != moving:
+                pushed = s.push_off(i); glCallList(s.lists(b)[1])
+                if pushed: glPopMatrix()
+        if wire: glEnable(GL_DEPTH_TEST)
+        if s.vstyle in ("hidden", "wire_hidden"):                            # hidden edges: dashed, behind the surfaces
+            glDepthFunc(GL_GREATER); glDepthMask(GL_FALSE); glEnable(GL_LINE_STIPPLE); glLineStipple(2, 0x3333)
+            glColor4f(0.45, 0.48, 0.52, 0.8); glLineWidth(1.0)
+            for i, b in enumerate(shown):
+                if b.visible and i != moving: glCallList(s.lists(b)[1])
+            glDisable(GL_LINE_STIPPLE); glDepthMask(GL_TRUE); glDepthFunc(GL_LEQUAL)
+        s.disable_section_clips()
+
+    # ---------------- overlays drawn in 3D after the model ----------------
+    def draw_inspect_3d(s):
+        glDisable(GL_LIGHTING)
+        for k, (o, n, a) in enumerate(s.section_planes()):                  # the section plane's outline
+            u = V(1, 0, 0) if abs(n.x) < 0.9 else V(0, 1, 0); u = (u - n*u.dot(n)).normalize(); w = n.cross(u); S = s.span()*0.6
+            glColor4f(*SEL, 0.9); glLineWidth(1.4); glEnable(GL_LINE_STIPPLE); glLineStipple(3, 0xAAAA); glBegin(GL_LINE_LOOP)
+            for x, y in ((-1, -1), (1, -1), (1, 1), (-1, 1)): glVertex3f(*(o + u*(x*S) + w*(y*S)).t())
+            glEnd(); glDisable(GL_LINE_STIPPLE)
+        for a in s.active_analyses():                                        # curvature combs
+            if a["t"] != "comb": continue
+            for r in a.get("edges", []):
+                try: e = s.ref_edge(r)
+                except Exception: continue
+                key = ("comb", r[0], r[1], r[2] if len(r) > 2 else 0, id(s.bodies[r[1]]) if r[0] == "edge" else id(s.sketches[r[1]].geo), a.get("scale", 1.0))
+                if key not in s._anacache:
+                    c = BRepAdaptor_Curve(e); u0, u1 = c.FirstParameter(), c.LastParameter(); pts, ks = [], []
+                    for j in range(81):
+                        u = u0 + (u1 - u0)*j/80; pr = BRepLProp_CLProps(c, u, 2, 1e-6); p = vec(c.Value(u))
+                        kk = pr.Curvature() if pr.IsTangentDefined() else 0.0; nn = V()
+                        if kk > 1e-9:
+                            g = gp_Dir(); pr.Normal(g); nn = vec(g)
+                        pts.append(p); ks.append((kk, nn))
+                    kmax = max([k for k, _ in ks] + [1e-9]); sc = s.span()*0.08*a.get("scale", 1.0)/kmax
+                    tips = [p - nn*(k*sc) for p, (k, nn) in zip(pts, ks)]
+                    s._anacache[key] = (pts, tips)
+                pts, tips = s._anacache[key]
+                glColor4f(0.85, 0.25, 0.55, 0.9); glLineWidth(1.0); glBegin(GL_LINES)
+                for p, t in zip(pts, tips): glVertex3f(*p.t()); glVertex3f(*t.t())
+                glEnd(); glColor4f(0.6, 0.1, 0.4, 0.95); glLineWidth(1.6); s.strip([t.t() for t in tips])
+        if s.interf:                                                         # interference volumes
+            glDisable(GL_DEPTH_TEST); glColor4f(0.9, 0.12, 0.12, 0.55)
+            for b in s.interf: s.tris_array(b.tv)
+            glEnable(GL_DEPTH_TEST)
+        if s.com_marks:
+            glDisable(GL_DEPTH_TEST); r = s.dist*0.012
+            for b in s.bodies:
+                if not b.visible or getattr(b, "surface", False): continue
+                c = s.body_props(b)["com"]
+                glColor4f(0.1, 0.1, 0.12, 1); glPointSize(10); glBegin(GL_POINTS); glVertex3f(*c.t()); glEnd()
+                glColor4f(1, 1, 1, 1); glPointSize(5); glBegin(GL_POINTS); glVertex3f(*c.t()); glEnd()
+                glLineWidth(1.5); glBegin(GL_LINES)
+                for ax, col in ((V(1, 0, 0), (0.85, 0.2, 0.2)), (V(0, 1, 0), (0.2, 0.65, 0.25)), (V(0, 0, 1), (0.2, 0.4, 0.9))):
+                    glColor3f(*col); glVertex3f(*(c - ax*r).t()); glVertex3f(*(c + ax*r).t())
+                glEnd()
+            glEnable(GL_DEPTH_TEST)
+        S = s.plane_size()*1.5
+        for name, pl, col in ORIGIN_PLANES:                                  # origin planes switched on in the browser
+            if not s.origin_vis.get(name): continue
+            glPushMatrix(); glMultMatrixd(pl.gl()); glDepthMask(GL_FALSE); glColor4f(*col, 0.12); glBegin(GL_QUADS)
+            for x, y in ((0, 0), (S, 0), (S, S), (0, S)): glVertex3f(x, y, 0)
+            glEnd(); glColor4f(*col, 0.7); glLineWidth(1.2); glBegin(GL_LINE_LOOP)
+            for x, y in ((0, 0), (S, 0), (S, S), (0, S)): glVertex3f(x, y, 0)
+            glEnd(); glDepthMask(GL_TRUE); glPopMatrix()
+        if s.origin_vis.get("axes"):
+            L = s.plane_size()*2; glLineWidth(1.6); glBegin(GL_LINES)
+            for ax, col in ((V(1, 0, 0), (0.85, 0.2, 0.2)), (V(0, 1, 0), (0.2, 0.65, 0.25)), (V(0, 0, 1), (0.2, 0.4, 0.9))):
+                glColor3f(*col); glVertex3f(0, 0, 0); glVertex3f(*(ax*L).t())
+            glEnd()
+        for bi in sorted(s.msel):                                            # bodies picked by window / ctrl-click
+            if bi < len(s.bodies) and s.bodies[bi].visible:
+                glDepthMask(GL_FALSE); glColor4f(*HILITE, 0.16); s.tris_array(s.bodies[bi].tv); glDepthMask(GL_TRUE)
+        if s.meas is not None: s.draw_measure()
+
+    # ---------------- measure ----------------
+    def meas_shape(s, r):
+        k = r[0]
+        if k == "vertex": return BRepBuilderAPI_MakeVertex(pnt(V(*s.bodies[r[1]].verts[r[2]]))).Vertex()
+        if k == "edge": return s.bodies[r[1]].eds[r[2]]
+        if k == "face" and getattr(s.bodies[r[1]], "mesh", False): return s.bodies[r[1]].shape
+        if k == "face": return s.bodies[r[1]].faces[r[2]]
+        if k == "body": return s.bodies[r[1]].shape
+        if k in ("spoint", "origin", "cpoint"): return BRepBuilderAPI_MakeVertex(pnt(s.ref_point(r))).Vertex()
+        if k == "curve": return s.ref_edge(r)
+        raise RuntimeError("can't measure that")
+
+    def meas_pick(s, p):
+        kind = s.meas.get("kind", "geom")
+        if kind == "body":
+            hit = s.pick_face(p); return ("body", hit[0]) if hit else None
+        k = s.devicePixelRatioF(); px, py = s.mouse_dev(p); hit = s.pick_face(p); best = None
+        for bi, b in enumerate(s.bodies):                                    # vertices first (within 9 px, not hidden)
+            if not b.visible or not len(b.verts) or not getattr(b, "selectable", True): continue
+            xy, ok = s.project(b.verts); d = np.hypot(xy[:, 0] - px, xy[:, 1] - py); d[~ok] = np.inf; j = int(np.argmin(d))
+            if d[j] < 9*k and (best is None or d[j] < best[0]):
+                if hit is None or (V(*b.verts[j]) - s.eye()).Length <= (s.ray(p)[1]*hit[3] + s.ray(p)[0] - s.eye()).Length + s.dist*0.01 or s.ortho:
+                    best = (d[j], ("vertex", bi, j))
+        if best: return best[1]
+        e = s.edge_near(p)
+        if e: return ("edge",) + tuple(e)
+        r = s.pick_ref(p, {"point", "curve"})
+        if r: return r
+        return ("face", hit[0], hit[1]) if hit else None
+
+    def meas_point(s, r):
+        """A representative point for labels / centre-to-centre distance."""
+        if r[0] == "vertex": return V(*s.bodies[r[1]].verts[r[2]])
+        sh = s.meas_shape(r)
+        if r[0] == "edge" or r[0] == "curve":
+            c = BRepAdaptor_Curve(sh)
+            if c.GetType() == GeomAbs_Circle: return vec(c.Circle().Location())
+        return centroid(sh)
+
+    def meas_dir(s, r):
+        """A direction for angle measurements: straight edges, flat faces (normal), cylinders (axis)."""
+        try:
+            if r[0] in ("edge", "curve"):
+                c = BRepAdaptor_Curve(s.meas_shape(r))
+                if c.GetType() == GeomAbs_Line: return vec(c.Line().Direction()), "line"
+                if c.GetType() == GeomAbs_Circle: return vec(c.Circle().Axis().Direction()), "axis"
+            if r[0] == "face":
+                b = s.bodies[r[1]]; n = b.face_normal(r[2])
+                if n is not None: return n, "plane"
+                cyl = b.face_cylinder(r[2])
+                if cyl: return cyl[1], "axis"
+        except Exception: pass
+        return None, None
+
+    def meas_compute(s):
+        m = s.meas; P = m["picks"]; out = []; m["line"] = None
+        try:
+            if len(P) >= 1:
+                r = P[0]; sh = s.meas_shape(r)
+                if r[0] == "vertex" or r[0] in ("spoint", "origin", "cpoint"):
+                    q = s.meas_point(r); out.append(("Point", f"X {flen(q.x)}   Y {flen(q.y)}   Z {flen(q.z)}"))
+                elif r[0] in ("edge", "curve"):
+                    c = BRepAdaptor_Curve(sh); p = GProp_GProps(); linear_props(sh, p); out.append(("Length", flen(p.Mass())))
+                    if c.GetType() == GeomAbs_Circle: out.append(("Radius", flen(c.Circle().Radius())))
+                elif r[0] == "face":
+                    out.append(("Area", farea(face_area(sh))))
+                    cyl = s.bodies[r[1]].face_cylinder(r[2])
+                    if cyl: out.append(("Radius", flen(cyl[3])))
+                elif r[0] == "body":
+                    pr = s.body_props(s.bodies[r[1]]); out.append(("Volume", fvol(pr["volume"]))); out.append(("Area", farea(pr["area"])))
+            if len(P) >= 2:
+                a, b = P[0], P[1]; A, B = s.meas_shape(a), s.meas_shape(b)
+                if len(P) == 2: out = []
+                mode = m.get("dist", "min")
+                if mode == "centre": p1, p2 = s.meas_point(a), s.meas_point(b)
+                else:
+                    d = BRepExtrema_DistShapeShape(A, B); d.Perform()
+                    if not d.IsDone() or not d.NbSolution(): raise RuntimeError("no distance found")
+                    best = 0 if mode == "min" else 0
+                    p1, p2 = vec(d.PointOnShape1(1)), vec(d.PointOnShape2(1))
+                    if mode == "max":                                        # farthest pair of sample points
+                        sa = s.meas_samples(A); sb = s.meas_samples(B)
+                        D = np.linalg.norm(sa[:, None, :] - sb[None, :, :], axis=2); i, j = np.unravel_index(int(np.argmax(D)), D.shape)
+                        p1, p2 = V(*sa[i]), V(*sb[j])
+                dv = p2 - p1; m["line"] = (p1, p2)
+                out.append(("Distance", flen(dv.Length)))
+                out.append(("ΔX ΔY ΔZ", f"{flen(abs(dv.x))}   {flen(abs(dv.y))}   {flen(abs(dv.z))}"))
+                (da, ka), (db, kb) = s.meas_dir(a), s.meas_dir(b)
+                if da is not None and db is not None:
+                    c = max(-1.0, min(1.0, abs(da.dot(db)))); ang = math.degrees(math.acos(c))
+                    if ka == "plane" and kb == "plane": out.append(("Angle", f"{fmt(ang, m.get('prec', 2))}°  (between faces)"))
+                    elif "plane" in (ka, kb) and ("line" in (ka, kb) or "axis" in (ka, kb)): out.append(("Angle", f"{fmt(90 - ang, m.get('prec', 2))}°"))
+                    else: out.append(("Angle", f"{fmt(ang, m.get('prec', 2))}°"))
+        except Exception as ex: out.append(("", str(ex)))
+        m["out"] = out
+        if s.meas_cb: s.meas_cb()
+        s.update()
+
+    def meas_samples(s, sh):
+        BRepMesh_IncrementalMesh(sh, 0.5, False, 0.3, True); pts = []
+        for f in subshapes(sh, TopAbs_FACE) or []:
+            mm = face_mesh(f)
+            if mm: pts.append(mm[0])
+        if not pts:
+            for e in subshapes(sh, TopAbs_EDGE) or [sh] if sh.ShapeType() == TopAbs_EDGE else subshapes(sh, TopAbs_EDGE):
+                pts.append(edge_pts(e, 0.2))
+        if not pts: return np.array([centroid(sh).t()])
+        a = np.concatenate(pts)
+        return a[:: max(1, len(a)//800)]
+
+    def draw_measure(s):
+        m = s.meas
+        if s.cmd_hover is not None and not s.cmd: s.draw_ref(s.cmd_hover, HILITE, 0.8, 3.0)
+        for r in m["picks"]: s.draw_ref(r, MEAS_COL, 1.0, 4.0)
+        if m.get("line"):
+            p1, p2 = m["line"]; glDisable(GL_DEPTH_TEST); glColor4f(*MEAS_COL, 1); glLineWidth(2.2)
+            glBegin(GL_LINES); glVertex3f(*p1.t()); glVertex3f(*p2.t()); glEnd()
+            glPointSize(8); glBegin(GL_POINTS); glVertex3f(*p1.t()); glVertex3f(*p2.t()); glEnd(); glEnable(GL_DEPTH_TEST)
+
+    # ---------------- inspection numbers ----------------
+    def body_props(s, b):
+        key = ("props", id(b))
+        if key in s._anacache: return s._anacache[key]
+        if getattr(b, "mesh", False):
+            T = b.tv; vol = abs(mesh_volume(T)); P = T.reshape(-1, 3); dens = dict(MATERIALS).get(b.material)
+            out = {"area": mesh_area(T), "volume": vol, "com": mesh_centroid(T), "lo": V(*P.min(0)), "hi": V(*P.max(0)), "density": dens,
+                   "mass": vol/1000.0*dens if dens else None, "inertia": None, "triangles": len(T)}
+            s._anacache[key] = out; return out
+        sh = b.shape; out = {}
+        p = GProp_GProps(); surface_props(sh, p); out["area"] = p.Mass()
+        if getattr(b, "surface", False):
+            out["volume"] = 0.0; out["com"] = vec(p.CentreOfMass()); g = p
+        else:
+            g = GProp_GProps(); volume_props(sh, g); out["volume"] = abs(g.Mass()); out["com"] = vec(g.CentreOfMass())
+        lo, hi = bbox(sh); out["lo"], out["hi"] = lo, hi
+        dens = dict(MATERIALS).get(b.material)
+        out["density"] = dens; out["mass"] = out["volume"]/1000.0*dens if dens else None
+        try:
+            pp = g.PrincipalProperties(); I1, I2, I3 = pp.Moments()
+            k = (dens or 1.0)/1000.0                                      # g/mm^3 -> I in g*mm^2
+            out["inertia"] = (I1*k, I2*k, I3*k)
+            M = g.MatrixOfInertia(); out["inertia_matrix"] = [[M.Value(i, j)*k for j in (1, 2, 3)] for i in (1, 2, 3)]
+        except Exception: out["inertia"] = None
+        s._anacache[key] = out; return out
+
+    def interference(s, ids):
+        """[(i, j, overlap shape, volume)] for every pair of the given solid bodies that overlap."""
+        out = []
+        ids = [i for i in ids if i < len(s.bodies) and not getattr(s.bodies[i], "surface", False)
+               and not (getattr(s.bodies[i], "mesh", False) and len(s.bodies[i].tv) > MESH_CONVERT_MAX)]
+        for x in range(len(ids)):
+            for y in range(x + 1, len(ids)):
+                i, j = ids[x], ids[y]; a, b = s.bodies[i], s.bodies[j]
+                if any(a.hi.t()[k] < b.lo.t()[k] - 1e-6 or b.hi.t()[k] < a.lo.t()[k] - 1e-6 for k in range(3)): continue
+                try:
+                    c = boolean(a.shape, b.shape, "common"); v = abs(volume(c))
+                    if v > 1e-6: out.append((i, j, c, v))
+                except Exception: pass
+        return out
+
+    # ---------------- selection: filters, window, multi-select ----------------
+    def idle(s):
+        return not (s.skedit or s.cmd or s.tool or s.ext or s.mv or s.rev or s.calib or s.nav)
+
+    def insp_press(s, e):
+        s.box_start = None
+        if e.button() != C.Qt.LeftButton: return False
+        if s.meas is not None: return True
+        if s.idle() and not s.label_at(e.position()) and not s.edge_near(e.position()) and s.pick_face(e.position()) is None \
+                and not s.region_under(e.position()):
+            s.box_start = e.position()
+        return False
+
+    def insp_move(s, e):
+        if s.box_start is not None and e.buttons() & C.Qt.LeftButton:
+            p = e.position()
+            if s.box is not None or (p - s.box_start).manhattanLength() > 5:
+                s.box = (s.box_start, p); s.moved = True; s.update(); return True
+        if s.meas is not None and not e.buttons():
+            r = s.meas_pick(e.position()); s.cmd_hover = r; s.update()
+        return False
+
+    def insp_release(s, e):
+        if s.box is not None:
+            a, b = s.box; s.box = s.box_start = None; s.window_select(a, b, e.modifiers()); s.changed.emit(); s.update(); return True
+        s.box_start = None
+        if s.meas is not None:
+            if e.button() == C.Qt.LeftButton and not s.moved:
+                r = s.meas_pick(e.position())
+                if r is not None:
+                    P = s.meas["picks"]
+                    if len(P) >= 2: P.clear()
+                    P.append(r); s.meas_compute()
+                return True
+            return e.button() == C.Qt.LeftButton
+        if e.button() == C.Qt.LeftButton and not s.moved and s.idle():
+            if e.modifiers() & (C.Qt.ControlModifier | C.Qt.ShiftModifier) and "bodies" in s.sel_filter:
+                hit = s.pick_face(e.position())
+                if hit and not s.edge_near(e.position()):
+                    bi = hit[0]; cur = s.msel | ({s.sel_body} if s.sel_body is not None else set())
+                    cur ^= {bi}; s.msel = cur; s.sel_body = min(cur) if cur else None; s.sel_face = None; s.sel.clear()
+                    s.msg.emit(f"{len(cur)} bodies selected."); s.changed.emit(); s.update(); return True
+            s.msel = set()
+            if "faces" not in s.sel_filter or "edges" not in s.sel_filter:
+                e2 = s.edge_near(e.position()) if "edges" in s.sel_filter else None
+                if e2 is None:
+                    hit = s.pick_face(e.position())
+                    if hit and "faces" not in s.sel_filter:
+                        s.sel.clear(); s.sel_face = None
+                        s.sel_body = hit[0] if "bodies" in s.sel_filter else None
+                        if s.sel_body is not None: s.msg.emit(f"{s.body_name(hit[0])} selected.")
+                        s.changed.emit(); s.update(); return True
+                    if not hit and "profiles" not in s.sel_filter:
+                        s.sel.clear(); s.sel_face = s.sel_body = None; s.changed.emit(); s.update(); return True
+        return False
+
+    def body_name(s, bi):
+        b = s.bodies[bi]; return getattr(b, "name", None) or f"Body{bi + 1}"
+
+    def window_select(s, a, b, mods):
+        """Drag left-to-right: whatever is fully inside; right-to-left: whatever the box touches."""
+        k = s.devicePixelRatioF(); x0, x1 = sorted((a.x()*k, b.x()*k)); cross = b.x() < a.x()
+        y0, y1 = sorted(((s.vp[3] - a.y()*k), (s.vp[3] - b.y()*k)))
+        def inside(xy, ok):
+            m = (xy[:, 0] >= x0) & (xy[:, 0] <= x1) & (xy[:, 1] >= y0) & (xy[:, 1] <= y1) & ok
+            return m.any() if cross else m.all()
+        add = bool(mods & (C.Qt.ControlModifier | C.Qt.ShiftModifier))
+        if not add: s.sel.clear(); s.msel = set(); s.sel_face = None; s.sel_body = None
+        if "bodies" in s.sel_filter:
+            for bi, bd in enumerate(s.bodies):
+                if not bd.visible or not getattr(bd, "selectable", True) or not len(bd.tv): continue
+                pts = bd.tv.reshape(-1, 3)[:: max(1, len(bd.tv)*3//2000)]
+                xy, ok = s.project(pts)
+                if inside(xy, ok): s.msel.add(bi)
+            s.sel_body = min(s.msel) if s.msel else None
+            s.msg.emit(f"{len(s.msel)} bodies selected - Delete removes them; commands that take bodies start with them."); return
+        if "edges" in s.sel_filter:
+            for bi, bd in enumerate(s.bodies):
+                if not bd.visible or not getattr(bd, "selectable", True): continue
+                for ei, pl in enumerate(bd.edges):
+                    if len(pl) and inside(*s.project(pl)): s.sel.add((bi, ei))
+            s.msg.emit(f"{len(s.sel)} edges selected.")
+
+    def paint_meas_label(s, p):
+        m = s.meas
+        if m is None or not m.get("line") or s.mvp is None: return
+        p1, p2 = m["line"]; xy, ok = s.project([((p1 + p2)*0.5).t()])
+        if not ok[0]: return
+        q = s.to_logical(xy[0]); txt = flen((p2 - p1).Length, m.get("prec", 2))
+        f = p.font(); f.setPixelSize(12); f.setBold(True); p.setFont(f); fm = G.QFontMetricsF(f)
+        r = C.QRectF(q.x() + 8, q.y() - 22, fm.horizontalAdvance(txt) + 14, 20)
+        p.setPen(G.QPen(G.QColor(235, 115, 25), 1.5)); p.setBrush(G.QColor(255, 255, 255, 240)); p.drawRoundedRect(r, 3, 3)
+        p.setPen(G.QColor("#7a3a08")); p.drawText(r, C.Qt.AlignCenter, txt); f.setBold(False); p.setFont(f)
+
+    def draw_box(s, p):
+        if s.box is None: return
+        a, b = s.box; r = C.QRectF(a, b).normalized(); cross = b.x() < a.x()
+        p.setPen(G.QPen(G.QColor(ACCENT), 1, C.Qt.DashLine if cross else C.Qt.SolidLine)); p.setBrush(G.QColor(6, 150, 215, 30 if cross else 45)); p.drawRect(r)
+
+    def nav_kind(s, b, mods):
+        pre = s.nav_preset
+        if pre == "solidworks":
+            if b & C.Qt.MiddleButton: return "pan" if mods & C.Qt.ControlModifier else "orbit"
+            return None
+        if pre == "fusion":
+            if b & C.Qt.MiddleButton: return "orbit" if mods & C.Qt.ShiftModifier else "pan"
+            return None
+        if b & C.Qt.RightButton or (b & C.Qt.MiddleButton and mods & C.Qt.ShiftModifier): return "orbit"
+        if b & C.Qt.MiddleButton: return "pan"
+        return None
+
+    # ---------------- design file ----------------
+    def insp_save(s):
+        clean = [{k: v for k, v in a.items() if not k.startswith("_")} for a in s.analyses]
+        return {"views": s.views, "home": s.home_cam, "analyses": enc(clean), "vstyle": s.vstyle, "ortho": s.ortho,
+                "tl_groups": [dict(g, open=False) for g in getattr(s, "tl_groups", [])], "drawing": getattr(s, "drawing_doc", None),
+                "story": getattr(s, "storyboard", []), "cam": s.cam if s.cam["ops"] or s.cam["tools"] != DEFAULT_TOOLS else None}
+    def insp_load(s, data):
+        s.views = data.get("views") or {}; s.home_cam = data.get("home")
+        s.tl_groups = [dict(g) for g in data.get("tl_groups") or []]; s.drawing_doc = data.get("drawing"); s.storyboard = data.get("story") or []
+        if data.get("cam"):
+            s.cam = data["cam"]; s.cam_paths = {}
+            try: s.cam_regen()
+            except Exception: traceback.print_exc()
+        s.analyses = dec(data.get("analyses") or []); s._anacache = {}
+        s.vstyle = data.get("vstyle", s.vstyle); s.ortho = bool(data.get("ortho", s.ortho))
+
+
+# ---------------------------------------------------------------------------------------------------------------
+#  Mesh bodies (0.7): triangle meshes from STL / OBJ / 3MF, mesh tools (repair, cut, combine, separate, smooth,
+#  reduce, sections), conversion to and from B-rep; plus STEP / IGES / BREP exchange
+# ---------------------------------------------------------------------------------------------------------------
+import base64, io as _io, struct as _struct, zlib as _zlib
+from OCP.STEPControl import STEPControl_Reader, STEPControl_Writer, STEPControl_AsIs
+from OCP.IGESControl import IGESControl_Reader, IGESControl_Writer
+from OCP.IFSelect import IFSelect_RetDone
+from OCP.BRepBuilderAPI import BRepBuilderAPI_Copy
+from OCP.TopoDS import TopoDS_Shape, TopoDS_Shell
+
+def pack_arr(a):
+    buf = _io.BytesIO(); np.save(buf, np.asarray(a, np.float32)); return base64.b64encode(_zlib.compress(buf.getvalue(), 6)).decode()
+def unpack_arr(s): return np.load(_io.BytesIO(_zlib.decompress(base64.b64decode(s))))
+def pack_text(t): return base64.b64encode(_zlib.compress(t.encode("utf-8"), 6)).decode()
+def unpack_text(s): return _zlib.decompress(base64.b64decode(s)).decode("utf-8")
+
+def shape_to_brep_text(sh):
+    import tempfile as _tf
+    fd, p = _tf.mkstemp(suffix=".brep"); os.close(fd)
+    try: brep_write(sh, p); return open(p, encoding="utf-8", errors="replace").read()
+    finally: os.remove(p)
+def brep_text_to_shape(t):
+    import tempfile as _tf
+    from OCP.BRepTools import BRepTools as _BT
+    fd, p = _tf.mkstemp(suffix=".brep"); os.close(fd)
+    try:
+        open(p, "w", encoding="utf-8").write(t); sh = TopoDS_Shape(); st(_BT, "Read")(sh, p, BRep_Builder()); return sh
+    finally: os.remove(p)
+
+# ---------------- mesh algorithms (numpy) ----------------
+def weld(tris, tol=None):
+    """Shared vertices: (V (M,3), F (N,3) int)."""
+    P = np.asarray(tris, float).reshape(-1, 3)
+    if not len(P): return np.zeros((0, 3)), np.zeros((0, 3), int)
+    span = float(np.ptp(P, 0).max()) or 1.0; tol = tol or span*1e-7
+    keys = np.round(P/tol).astype(np.int64)
+    _, first, inv = np.unique(keys, axis=0, return_index=True, return_inverse=True)
+    return P[first], inv.reshape(-1, 3)
+
+def tri_normals(T):
+    n = np.cross(T[:, 1] - T[:, 0], T[:, 2] - T[:, 0]); L = np.linalg.norm(n, axis=1, keepdims=True)
+    return n/np.maximum(L, 1e-300), L[:, 0]/2
+
+def edge_map(F):
+    """Undirected edges: (E (k,2) sorted vertex ids, inverse index per face-edge (N,3))."""
+    e = np.stack([F[:, [0, 1]], F[:, [1, 2]], F[:, [2, 0]]], 1).reshape(-1, 2)
+    E, inv = np.unique(np.sort(e, 1), axis=0, return_inverse=True)
+    return E, inv.reshape(-1, 3)
+
+def feature_segments(T, angle=35.0):
+    """Edges worth drawing on a mesh: open boundaries and creases sharper than angle."""
+    if not len(T): return np.zeros((0, 3)), np.zeros((0, 3))
+    Vv, F = weld(T); n, _ = tri_normals(T); E, inv = edge_map(F)
+    cnt = np.bincount(inv.reshape(-1), minlength=len(E))
+    f_of = np.repeat(np.arange(len(F)), 3); order = np.argsort(inv.reshape(-1), kind="stable")
+    ei = inv.reshape(-1)[order]; fi = f_of[order]
+    start = np.searchsorted(ei, np.arange(len(E)))
+    keep = cnt == 1
+    two = np.where(cnt == 2)[0]
+    if len(two):
+        a, b = fi[start[two]], fi[start[two] + 1]
+        keep[two] = (n[a]*n[b]).sum(1) < math.cos(math.radians(angle))
+    sel = E[keep]
+    if len(sel) > 200000: sel = sel[:200000]
+    return Vv[sel[:, 0]], Vv[sel[:, 1]]
+
+def mesh_volume(T):
+    T = np.asarray(T, float)
+    return float(np.einsum("ij,ij->i", T[:, 0], np.cross(T[:, 1], T[:, 2])).sum()/6.0) if len(T) else 0.0
+def mesh_area(T): return float(tri_normals(np.asarray(T, float))[1].sum()) if len(T) else 0.0
+def mesh_centroid(T):
+    T = np.asarray(T, float); v6 = np.einsum("ij,ij->i", T[:, 0], np.cross(T[:, 1], T[:, 2]))
+    if abs(v6.sum()) < 1e-12: return V(*T.reshape(-1, 3).mean(0))
+    return V(*((T.sum(1)/4.0)*v6[:, None]).sum(0)/v6.sum())
+
+def components(F, nv):
+    par = np.arange(nv)
+    def find(x):
+        r = x
+        while par[r] != r: r = par[r]
+        while par[x] != r: par[x], x = r, par[x]
+        return r
+    for a, b, c in F:
+        ra, rb, rc = find(a), find(b), find(c)
+        if rb != ra: par[rb] = ra
+        if rc != ra and find(rc) != ra: par[find(rc)] = ra
+    roots = np.array([find(f[0]) for f in F])
+    return [np.where(roots == r)[0] for r in np.unique(roots)]
+
+def orient_consistently(F):
+    """Flip faces so neighbours agree (BFS over shared edges)."""
+    F = F.copy(); E, inv = edge_map(F); nbr = {}
+    for fi in range(len(F)):
+        for k in range(3): nbr.setdefault(inv[fi, k], []).append(fi)
+    seen = np.zeros(len(F), bool)
+    def dirs(f): return {(F[f][0], F[f][1]), (F[f][1], F[f][2]), (F[f][2], F[f][0])}
+    for s0 in range(len(F)):
+        if seen[s0]: continue
+        seen[s0] = True; stack = [s0]
+        while stack:
+            f = stack.pop(); df = dirs(f)
+            for k in range(3):
+                for g in nbr[inv[f, k]]:
+                    if g == f or seen[g]: continue
+                    if dirs(g) & df: F[g] = F[g][[0, 2, 1]]                 # same directed edge = opposite winding
+                    seen[g] = True; stack.append(g)
+    return F
+
+def boundary_loops(F):
+    E, inv = edge_map(F); cnt = np.bincount(inv.reshape(-1), minlength=len(E))
+    nxt = {}
+    for f in F:
+        for a, b in ((f[0], f[1]), (f[1], f[2]), (f[2], f[0])):
+            key = (min(a, b), max(a, b))
+            idx = np.searchsorted(E[:, 0]*(1 << 31) + E[:, 1], key[0]*(1 << 31) + key[1])
+            if idx < len(E) and cnt[idx] == 1: nxt[b] = a                     # walk boundary opposite to face winding
+    loops, used = [], set()
+    for s0 in list(nxt):
+        if s0 in used: continue
+        loop = [s0]; used.add(s0); c = nxt.get(s0)
+        while c is not None and c != s0 and c not in used and len(loop) < 100000:
+            loop.append(c); used.add(c); c = nxt.get(c)
+        if c == s0 and len(loop) >= 3: loops.append(loop)
+    return loops
+
+def repair_mesh(T, fill_holes=True):
+    Vv, F = weld(T); n, area = tri_normals(np.asarray(T, float))
+    keep = (area > 1e-14) & (F[:, 0] != F[:, 1]) & (F[:, 1] != F[:, 2]) & (F[:, 0] != F[:, 2])
+    F = F[keep]
+    _, u = np.unique(np.sort(F, 1), axis=0, return_index=True); F = F[np.sort(u)]
+    F = orient_consistently(F)
+    if fill_holes:
+        add = []
+        for loop in boundary_loops(F):
+            if len(loop) > 400: continue
+            c = Vv[loop].mean(0); ci = len(Vv) + len(add)
+            add.append(c)
+            F = np.vstack([F] + [np.array([[loop[i], loop[(i + 1) % len(loop)], ci]]) for i in range(len(loop))])
+        if add: Vv = np.vstack([Vv, np.array(add)])
+    T2 = Vv[F]
+    if mesh_volume(T2) < 0: T2 = T2[:, [0, 2, 1]]
+    return T2
+
+def taubin_smooth(T, iters=10, lam=0.5, mu=-0.53):
+    Vv, F = weld(T); E, _ = edge_map(F); P = Vv.copy()
+    deg = np.bincount(E.reshape(-1), minlength=len(P)).astype(float)
+    fixed = np.zeros(len(P), bool)
+    for loop in boundary_loops(F): fixed[loop] = True                           # keep open edges in place
+    for _ in range(int(iters)):
+        for k in (lam, mu):
+            acc = np.zeros_like(P); np.add.at(acc, E[:, 0], P[E[:, 1]]); np.add.at(acc, E[:, 1], P[E[:, 0]])
+            lap = acc/np.maximum(deg, 1)[:, None] - P; lap[fixed] = 0; P = P + k*lap
+    return P[F]
+
+def cluster_reduce(T, ratio):
+    """Vertex-clustering decimation to roughly `ratio` of the triangles."""
+    Vv, F = weld(T); target = max(4, int(len(F)*ratio)); span = float(np.ptp(Vv, 0).max()) or 1.0
+    lo, hi = span*1e-5, span*0.5; best = Vv[F]
+    for _ in range(18):
+        cell = math.sqrt(lo*hi)
+        key = np.floor((Vv - Vv.min(0))/cell).astype(np.int64)
+        _, rep, inv = np.unique(key, axis=0, return_index=True, return_inverse=True); inv = inv.reshape(-1)
+        cnt = np.bincount(inv); P = np.zeros((len(cnt), 3)); np.add.at(P, inv, Vv); P /= cnt[:, None]
+        G = inv[F]; ok = (G[:, 0] != G[:, 1]) & (G[:, 1] != G[:, 2]) & (G[:, 0] != G[:, 2]); G = G[ok]
+        _, u = np.unique(np.sort(G, 1), axis=0, return_index=True); G = G[np.sort(u)]
+        if len(G) > target: lo = cell
+        else: hi = cell; best = P[G]
+        if abs(len(G) - target) < max(10, target*0.02): best = P[G]; break
+    return best
+
+def clip_by_plane(T, o, n, keep_below=True):
+    """Keep the part of the mesh on one side of a plane. Returns (triangles, cut segments)."""
+    T = np.asarray(T, float); nn = np.array(n.t()); d = (T - np.array(o.t())) @ nn
+    if not keep_below: d = -d
+    out, segs = [], []
+    allin = (d <= 0).all(1); out.append(T[allin])
+    for t, dd in zip(T[~allin & (d < 0).any(1)], d[~allin & (d < 0).any(1)]):
+        poly, cut = [], []
+        for i in range(3):
+            a, b, da, db = t[i], t[(i + 1) % 3], dd[i], dd[(i + 1) % 3]
+            if da <= 0: poly.append(a)
+            if (da < 0) != (db < 0) and abs(da - db) > 1e-15:
+                q = a + (b - a)*(da/(da - db)); poly.append(q); cut.append(q)
+        for k in range(1, len(poly) - 1): out.append(np.array([[poly[0], poly[k], poly[k + 1]]]))
+        if len(cut) == 2: segs.append(cut)
+    return np.concatenate([x for x in out if len(x)]) if any(len(x) for x in out) else np.zeros((0, 3, 3)), segs
+
+def section_segments(T, o, n):
+    T = np.asarray(T, float); nn = np.array(n.t()); d = (T - np.array(o.t())) @ nn; segs = []
+    m = (d.min(1) < 0) & (d.max(1) > 0)
+    for t, dd in zip(T[m], d[m]):
+        pts = []
+        for i in range(3):
+            a, b, da, db = t[i], t[(i + 1) % 3], dd[i], dd[(i + 1) % 3]
+            if (da < 0) != (db < 0): pts.append(a + (b - a)*(da/(da - db)))
+        if len(pts) == 2: segs.append(pts)
+    return segs
+
+def chain_segments(segs, tol=None):
+    """Join loose segments into polylines (closed ones repeat their first point at the end)."""
+    if not segs: return []
+    P = np.array(segs).reshape(-1, 3); span = float(np.ptp(P, 0).max()) or 1.0; tol = tol or span*1e-6
+    key = lambda p: tuple(np.round(p/tol).astype(np.int64))
+    adj = {}
+    for i, (a, b) in enumerate(segs):
+        adj.setdefault(key(a), []).append((i, 1)); adj.setdefault(key(b), []).append((i, 0))
+    used = np.zeros(len(segs), bool); out = []
+    for s0 in range(len(segs)):
+        if used[s0]: continue
+        used[s0] = True; line = [segs[s0][0], segs[s0][1]]
+        for end in (1, 0):
+            while True:
+                tip = line[-1] if end else line[0]; nxt = None
+                for j, other in adj.get(key(tip), []):
+                    if not used[j]: nxt = (j, other); break
+                if nxt is None: break
+                j, other = nxt; used[j] = True; q = segs[j][other]
+                if end: line.append(q)
+                else: line.insert(0, q)
+        out.append(np.array(line))
+    return out
+
+def simplify_polyline(P, tol):
+    """Douglas-Peucker."""
+    if len(P) < 3: return P
+    a, b = P[0], P[-1]; ab = b - a; L = np.linalg.norm(ab)
+    d = np.linalg.norm(np.cross(P - a, ab), axis=1)/L if L > 1e-12 else np.linalg.norm(P - a, axis=1)
+    i = int(np.argmax(d))
+    if d[i] <= tol: return np.array([a, b])
+    return np.vstack([simplify_polyline(P[:i + 1], tol)[:-1], simplify_polyline(P[i:], tol)])
+
+def cap_loops(loops, n):
+    """Triangles filling closed planar loops (holes handled by nesting) via an OCC face."""
+    tris = []
+    ws = []
+    for L in loops:
+        if len(L) < 4: continue
+        mk = BRepBuilderAPI_MakePolygon()
+        for q in L[:-1]: mk.Add(gp_Pnt(*map(float, q)))
+        mk.Close()
+        try: ws.append(mk.Wire())
+        except Exception: pass
+    if not ws: return np.zeros((0, 3, 3))
+    faces = [BRepBuilderAPI_MakeFace(w, True).Face() for w in ws]
+    areas = [face_area(f) for f in faces]; order = sorted(range(len(ws)), key=lambda i: -areas[i]); placed = []
+    for i in order:
+        host = None
+        for j in placed:
+            try:
+                if classify_in_face(faces[j], centroid(ws[i])): host = j
+            except Exception: pass
+        placed.append(i)
+        if host is None: continue
+    try:
+        cut = fuse_all(faces) if len(faces) > 1 else faces[0]
+        res = faces[order[0]]
+        for i in order[1:]:
+            inside = classify_in_face(faces[order[0]], centroid(ws[i]))
+            res = boolean(res, faces[i], "cut" if inside else "fuse")
+        BRepMesh_IncrementalMesh(res, 0.05, False, 0.3, True)
+        for f in subshapes(res, TopAbs_FACE):
+            m = face_mesh(f)
+            if m:
+                tri = m[0][m[1]]
+                if (tri_normals(tri)[0].mean(0) @ np.array(n.t())) < 0: tri = tri[:, [0, 2, 1]]
+                tris.append(tri)
+    except Exception: pass
+    return np.concatenate(tris) if tris else np.zeros((0, 3, 3))
+
+def classify_in_face(face, p):
+    from OCP.BRepClass import BRepClass_FaceClassifier as _FC
+    return _FC(face, pnt(p), 1e-6).State() == TopAbs_IN
+
+def tessellate(shape, defl=0.05, ang=0.3):
+    sh = BRepBuilderAPI_Copy(shape).Shape(); BRepMesh_IncrementalMesh(sh, defl, False, ang, True); out = []
+    for f in subshapes(sh, TopAbs_FACE):
+        m = face_mesh(f)
+        if m: out.append(m[0][m[1]])
+    return np.concatenate(out) if out else np.zeros((0, 3, 3))
+
+def mesh_to_brep(T, merge_planar=True):
+    """Faceted B-rep (one planar face per triangle, shared edges), optionally merging coplanar facets."""
+    Vv, F = weld(T)
+    F = F[(F[:, 0] != F[:, 1]) & (F[:, 1] != F[:, 2]) & (F[:, 0] != F[:, 2])]
+    if len(F): F = F[tri_normals(Vv[F])[1] > 1e-14]
+    verts = [BRepBuilderAPI_MakeVertex(gp_Pnt(*map(float, p))).Vertex() for p in Vv]
+    E, inv = edge_map(F); edges = []
+    for a, b in E:
+        try: edges.append(BRepBuilderAPI_MakeEdge(verts[a], verts[b]).Edge())
+        except Exception: edges.append(None)
+    sh = TopoDS_Shell(); bb = BRep_Builder(); bb.MakeShell(sh)
+    for fi, f in enumerate(F):
+        if any(edges[inv[fi, k]] is None for k in range(3)): continue
+        mw = BRepBuilderAPI_MakeWire()
+        for k in range(3):
+            e = edges[inv[fi, k]]; a, b = f[k], f[(k + 1) % 3]
+            mw.Add(e if E[inv[fi, k]][0] == a else to_edge(e.Reversed()))
+        try: bb.Add(sh, BRepBuilderAPI_MakeFace(mw.Wire(), True).Face())
+        except Exception: pass
+    from OCP.ShapeFix import ShapeFix_Shell
+    fx = ShapeFix_Shell(sh); fx.Perform(); res = fx.Shape()
+    closed = st(BRep_Tool, "IsClosed")(res)
+    if closed:
+        try: res = as_solid(res)
+        except Exception: pass
+    if merge_planar: res = clean(res)
+    return res
+
+# ---------------- files ----------------
+def read_stl(path):
+    data = open(path, "rb").read()
+    if len(data) >= 84:
+        n = _struct.unpack_from("<I", data, 80)[0]
+        if 84 + 50*n == len(data):
+            a = np.frombuffer(data, dtype=np.dtype([("n", "<f4", 3), ("v", "<f4", (3, 3)), ("c", "<u2")]), count=n, offset=84)
+            return a["v"].astype(float)
+    txt = data.decode("latin-1"); nums = re.findall(r"vertex\s+(\S+)\s+(\S+)\s+(\S+)", txt)
+    return np.array(nums, float).reshape(-1, 3, 3)
+
+def read_obj(path):
+    Vv, out = [], []
+    for line in open(path, encoding="latin-1"):
+        if line.startswith("v "): Vv.append([float(x) for x in line.split()[1:4]])
+        elif line.startswith("f "):
+            ids = [int(t.split("/")[0]) for t in line.split()[1:]]
+            ids = [i - 1 if i > 0 else len(Vv) + i for i in ids]
+            for k in range(1, len(ids) - 1): out.append((ids[0], ids[k], ids[k + 1]))
+    Vv = np.array(Vv, float); return Vv[np.array(out, int)] if out else np.zeros((0, 3, 3))
+
+def read_3mf(path):
+    import xml.etree.ElementTree as ET
+    out, scale = [], 1.0
+    with zipfile.ZipFile(path) as z:
+        for name in z.namelist():
+            if not name.lower().endswith(".model"): continue
+            root = ET.fromstring(z.read(name)); scale = {"micron": 0.001, "millimeter": 1, "centimeter": 10, "meter": 1000, "inch": 25.4, "foot": 304.8}.get(root.get("unit", "millimeter"), 1)
+            for mesh in root.iter():
+                if not mesh.tag.endswith("}mesh") and mesh.tag != "mesh": continue
+                vs = [[float(v.get("x")), float(v.get("y")), float(v.get("z"))] for v in mesh.iter() if v.tag.endswith("vertex")]
+                ts = [[int(t.get("v1")), int(t.get("v2")), int(t.get("v3"))] for t in mesh.iter() if t.tag.endswith("triangle")]
+                if vs and ts: out.append(np.array(vs)[np.array(ts)])
+    return (np.concatenate(out) if out else np.zeros((0, 3, 3)))*scale
+
+def read_mesh_file(path):
+    ext = os.path.splitext(path)[1].lower()
+    if ext == ".stl": return read_stl(path)
+    if ext == ".obj": return read_obj(path)
+    if ext == ".3mf": return read_3mf(path)
+    raise RuntimeError("Fission reads STL, OBJ and 3MF meshes")
+
+def write_stl(path, tris, ascii=False, name="fission"):
+    T = np.asarray(tris, float); n, _ = tri_normals(T)
+    if ascii:
+        with open(path, "w") as f:
+            f.write(f"solid {name}\n")
+            for t, nn in zip(T, n):
+                f.write(f" facet normal {nn[0]:.6e} {nn[1]:.6e} {nn[2]:.6e}\n  outer loop\n")
+                for p in t: f.write(f"   vertex {p[0]:.6e} {p[1]:.6e} {p[2]:.6e}\n")
+                f.write("  endloop\n endfacet\n")
+            f.write(f"endsolid {name}\n")
+        return
+    rec = np.zeros(len(T), dtype=np.dtype([("n", "<f4", 3), ("v", "<f4", (3, 3)), ("c", "<u2")])); rec["n"] = n; rec["v"] = T
+    with open(path, "wb") as f: f.write(b"Fission STL".ljust(80, b" ")); f.write(_struct.pack("<I", len(T))); f.write(rec.tobytes())
+
+def read_cad_file(path):
+    ext = os.path.splitext(path)[1].lower()
+    if ext in (".step", ".stp"):
+        r = STEPControl_Reader()
+        if r.ReadFile(path) != IFSelect_RetDone: raise RuntimeError("couldn't read that STEP file")
+        r.TransferRoots(); return r.OneShape()
+    if ext in (".iges", ".igs"):
+        r = IGESControl_Reader()
+        if r.ReadFile(path) != IFSelect_RetDone: raise RuntimeError("couldn't read that IGES file")
+        r.TransferRoots(); return r.OneShape()
+    if ext == ".brep": return brep_text_to_shape(open(path, encoding="utf-8", errors="replace").read())
+    raise RuntimeError("Fission reads STEP, IGES and BREP files")
+
+def write_cad_file(path, shapes):
+    ext = os.path.splitext(path)[1].lower()
+    if ext in (".step", ".stp"):
+        w = STEPControl_Writer()
+        for sh in shapes: w.Transfer(sh, STEPControl_AsIs)
+        if w.Write(path) != IFSelect_RetDone: raise RuntimeError("couldn't write the STEP file")
+    elif ext in (".iges", ".igs"):
+        w = IGESControl_Writer("MM", 1)
+        for sh in shapes: w.AddShape(sh)
+        w.ComputeModel()
+        if not w.Write(path): raise RuntimeError("couldn't write the IGES file")
+    elif ext == ".brep": brep_write(compound(shapes) if len(shapes) > 1 else shapes[0], path)
+    else: raise RuntimeError("unknown CAD format")
+
+def split_imported(sh):
+    """Imported shape -> list of (shape, kind): solids, then free shells / faces as surfaces."""
+    out = [(x, "solid") for x in subshapes(sh, TopAbs_SOLID)]
+    used = ShapeIndex()
+    for so, _ in out:
+        for f in subshapes(so, TopAbs_FACE): used.add(f)
+    free = [f for f in subshapes(sh, TopAbs_FACE) if used.find(f) < 0]
+    if free:
+        for g in face_groups(free): out.append((sew(g, solid_if_closed=False) if len(g) > 1 else g[0], "surface"))
+    return out
+
+class MeshBody(Body):
+    """A triangle-mesh body (reference geometry from a scan or STL). Drawn with its facets' crease lines."""
+    def __init__(s, tris, name=None):
+        T = np.ascontiguousarray(np.asarray(tris, float).reshape(-1, 3, 3))
+        s.mesh, s.surface, s.visible, s.dl, s._shape = True, False, True, None, None
+        s.tv = T; n, _ = tri_normals(T) if len(T) else (np.zeros((0, 3)), None); s.tn = n
+        s.vn = np.repeat(n[:, None, :], 3, 1) if len(T) else np.zeros((0, 3, 3))
+        s.tri_face = np.zeros(len(T), dtype=int); s.faces = []
+        P = T.reshape(-1, 3); s.lo, s.hi = (V(*P.min(0)), V(*P.max(0))) if len(P) else (V(), V())
+        s.zmin = float(P[:, 2].min()) if len(P) else 0.0; s.defl = 0.05
+        s.sa, s.sb = feature_segments(T); s.se = np.full(len(s.sa), -1, dtype=int)
+        s.eds, s.edges, s.verts = [], [], np.zeros((0, 3))
+        s.color, s.material, s.face_colors, s.name = None, None, {}, name
+    @property
+    def shape(s):
+        if s._shape is None: s._shape = mesh_to_brep(s.tv, merge_planar=False)
+        return s._shape
+    @shape.setter
+    def shape(s, v): s._shape = v
+    def mass(s):
+        dens = dict(MATERIALS).get(s.material)
+        return abs(mesh_volume(s.tv))/1000.0*dens if dens else None
+    def face_normal(s, fid): return None
+    def face_cylinder(s, fid): return None
+    def faces_of_edge(s, e): return []
+
+MESH_CONVERT_MAX = 20000
+def mesh_quality(shape, q, defl=0.05, ang=15.0):
+    """(chordal deviation mm, angle deg) for a refinement preset, scaled to the part's size."""
+    if q == "custom": return max(1e-4, defl), max(1.0, ang)
+    lo, hi = bbox(shape); d = max((hi - lo).Length, 1.0)
+    return {"low": (d*0.002, 30.0), "med": (d*0.0005, 15.0), "high": (d*0.0001, 6.0)}[q]
+
+def mesh_vertex_curvature(T):
+    """Rough curvature (1/mm) at each triangle corner: normal change across neighbouring triangles per unit length."""
+    T = np.asarray(T, float)
+    if not len(T): return np.zeros((0, 3))
+    Vv, F = weld(T); n, area = tri_normals(T)
+    acc = np.zeros((len(Vv), 3)); np.add.at(acc, F.reshape(-1), np.repeat(n*area[:, None], 3, 0))
+    vn = acc/np.maximum(np.linalg.norm(acc, axis=1, keepdims=True), 1e-12)
+    E, _ = edge_map(F); L = np.linalg.norm(Vv[E[:, 0]] - Vv[E[:, 1]], axis=1)
+    k = np.linalg.norm(vn[E[:, 0]] - vn[E[:, 1]], axis=1)/np.maximum(L, 1e-9)
+    kv = np.zeros(len(Vv)); cnt = np.zeros(len(Vv))
+    np.add.at(kv, E[:, 0], k); np.add.at(kv, E[:, 1], k); np.add.at(cnt, E[:, 0], 1); np.add.at(cnt, E[:, 1], 1)
+    return (kv/np.maximum(cnt, 1))[F]
+
+def xform_body(b, M):
+    """Move / rotate a body by a 3x4 matrix (meshes stay meshes)."""
+    if getattr(b, "mesh", False):
+        A = np.array(M, float); T = b.tv @ A[:, :3].T + A[:, 3]
+        if np.linalg.det(A[:, :3]) < 0: T = T[:, [0, 2, 1]]
+        mb = MeshBody(T).copy_look(b); mb.visible = b.visible; return mb
+    return Body(transformed(b.shape, M)).copy_look(b)
+
+
+# ---------------------------------------------------------------------------------------------------------------
+#  Assemblies (0.7): components (named groups of bodies), joints with degrees of freedom, drive, motion links
+# ---------------------------------------------------------------------------------------------------------------
+JOINT_KINDS = [("Rigid", "rigid"), ("Revolute", "revolute"), ("Slider", "slider"), ("Cylindrical", "cylindrical"),
+               ("Pin-slot", "pinslot"), ("Planar", "planar"), ("Ball", "ball")]
+# each joint's free values: (label, "ang" | "len", motion in the joint frame)
+JOINT_DOF = {"rigid": [], "revolute": [("Rotation", "ang", "rz")], "slider": [("Slide", "len", "tz")],
+             "cylindrical": [("Rotation", "ang", "rz"), ("Slide", "len", "tz")],
+             "pinslot": [("Rotation", "ang", "rz"), ("Slide", "len", "tx")],
+             "planar": [("Slide X", "len", "tx"), ("Slide Y", "len", "ty"), ("Rotation", "ang", "rz")],
+             "ball": [("Pitch", "ang", "rx"), ("Yaw", "ang", "rz")]}
+
+def frame_mat(o, z, x):
+    """4x4 matrix whose columns are the frame's x, y, z axes and origin."""
+    z = z.normalize(); x = (x - z*x.dot(z)).normalize(); y = z.cross(x)
+    M = np.eye(4); M[:3, 0], M[:3, 1], M[:3, 2], M[:3, 3] = x.t(), y.t(), z.t(), o.t(); return M
+
+def perp_dir(z):
+    z = z.normalize(); a = V(1, 0, 0) if abs(z.x) < 0.9 else V(0, 1, 0)
+    return (a - z*a.dot(z)).normalize()
+
+def dof_mat(kind, vals):
+    """Motion (4x4, in the joint frame) for a joint's values."""
+    M = np.eye(4)
+    for (lab, unit, m), val in zip(JOINT_DOF[kind], vals):
+        T = np.eye(4)
+        if m[0] == "t": T[{"x": 0, "y": 1, "z": 2}[m[1]], 3] = val
+        else:
+            a = math.radians(val); c, s_ = math.cos(a), math.sin(a)
+            if m[1] == "z": T[:2, :2] = [[c, -s_], [s_, c]]
+            elif m[1] == "x": T[1:3, 1:3] = [[c, -s_], [s_, c]]
+            else: T[0, 0], T[0, 2], T[2, 0], T[2, 2] = c, s_, -s_, c
+        M = M @ T
+    return M
+
+def mat34(M): return [list(map(float, M[i])) for i in range(3)]
+def xf_pt(M, p): return V(*(M[:3, :3] @ np.array(p.t()) + M[:3, 3]))
+def xf_dir(M, d): return V(*(M[:3, :3] @ np.array(d.t())))
+
+class AssemblyMixin:
+    def asm_init(s):
+        s.comps, s.joints, s.mlinks, s.active_comp = {}, [], [], None
+        s.sm = dict(SM_DEFAULT)
+
+    def asm_state(s):
+        if not hasattr(s, "comps"): s.asm_init()
+        return {"comps": copy.deepcopy(s.comps), "joints": copy.deepcopy(s.joints), "mlinks": copy.deepcopy(s.mlinks), "sm": dict(s.sm)}
+    def asm_apply(s, d):
+        s.comps = copy.deepcopy(d.get("comps", {})); s.joints = copy.deepcopy(d.get("joints", [])); s.mlinks = copy.deepcopy(d.get("mlinks", []))
+        s.sm = dict(d.get("sm") or SM_DEFAULT)
+        if getattr(s, "active_comp", None) not in s.comps: s.active_comp = None
+
+    def comp_of(s, bi): return getattr(s.bodies[bi], "comp", None)
+    def comp_bodies(s, name): return [i for i, b in enumerate(s.bodies) if getattr(b, "comp", None) == name]
+    def new_comp_name(s):
+        i = 1
+        while f"Component{i}" in s.comps: i += 1
+        return f"Component{i}"
+
+    def after_op_comps(s, op, before):
+        """Bodies an operation re-created lose their component tag: give it back (same slot) or put new bodies in the
+        component that was active when the step was made."""
+        same = len(before) == len(s.bodies)
+        for i, b in enumerate(s.bodies):
+            if getattr(b, "comp", None) is not None: continue
+            c = before[i] if same and i < len(before) else op.get("in_comp")
+            if c and c in s.comps: nb = b.restyled(); nb.comp = c; s.bodies[i] = nb
+
+    # ---- joint origins ----
+    def ref_frame(s, r):
+        """(origin, z axis, x axis) a joint snaps to: face centre + normal, circle centre + axis, cylinder end + axis,
+        straight edge middle + direction, or a point with Z up."""
+        k = r[0]
+        if k == "face":
+            b = s.bodies[r[1]]; cyl = b.face_cylinder(r[2])
+            if cyl:
+                o, a, xd, R, v0, v1, ext = cyl; p = V(*r[3]) if len(r) > 3 else o
+                t = (p - o).dot(a); end = v0 if abs(t - v0) <= abs(t - v1) else v1
+                return o + a*end, a, xd if xd.Length > 1e-9 else perp_dir(a)
+            f = b.faces[r[2]]; c, n = face_frame(f); return centroid(f), n, perp_dir(n)
+        if k in ("edge", "curve"):
+            e = s.ref_edge(r); c = BRepAdaptor_Curve(e)
+            if c.GetType() == GeomAbs_Circle:
+                ci = c.Circle(); z = vec(ci.Axis().Direction()); o = vec(ci.Location())
+                if k == "edge":                                          # point the axis out of the flat face the circle lies on
+                    for f in faces_of_edge_in(s.bodies[r[1]].shape, e):
+                        try:
+                            if BRepAdaptor_Surface(f).GetType() == GeomAbs_Plane:
+                                n = face_frame(f)[1]
+                                if n.dot(z) < 0: z = -z
+                                break
+                        except Exception: pass
+                return o, z, vec(ci.XAxis().Direction())
+            if c.GetType() == GeomAbs_Line:
+                a, b = vec(c.Value(c.FirstParameter())), vec(c.Value(c.LastParameter())); d = (b - a).normalize(); return (a + b)*0.5, d, perp_dir(d)
+            p = s.ref_point(r); return p, V(0, 0, 1), V(1, 0, 0)
+        if k in ("oplane", "cplane"):
+            pl = s.ref_plane(r); return pl.o, pl.n, pl.u
+        return s.ref_point(r), V(0, 0, 1), V(1, 0, 0)
+
+    def ref_comp(s, r):
+        if r[0] in ("face", "edge", "vertex", "body", "spot"): return s.comp_of(r[1])
+        return None
+
+    # ---- moving components ----
+    def moving_set(s, comp, skip=None):
+        """A component plus everything jointed onto it (directly or through other joints)."""
+        out = {comp}; changed = True
+        while changed:
+            changed = False
+            for j, jt in enumerate(s.joints):
+                if j == skip: continue
+                if jt["b"] in out and jt["a"] not in out and not s.comps.get(jt["a"], {}).get("ground"): out.add(jt["a"]); changed = True
+        return out
+
+    def move_comps(s, comps, M, skip=None):
+        """Transform every body of the components (and the joint frames carried by them) by the 4x4 matrix M."""
+        m34 = mat34(M)
+        for i, b in enumerate(s.bodies):
+            if getattr(b, "comp", None) in comps:
+                nb = xform_body(b, m34); nb.comp = b.comp; nb.visible = b.visible; nb.name = getattr(b, "name", None)
+                for k in ("opacity", "selectable"):
+                    if hasattr(b, k): setattr(nb, k, getattr(b, k))
+                s.bodies[i] = nb
+        for j, jt in enumerate(s.joints):
+            if j != skip and jt["b"] in comps:
+                jt["o"], jt["z"], jt["x"] = xf_pt(M, jt["o"]), xf_dir(M, jt["z"]), xf_dir(M, jt["x"])
+
+    def joint_frame(s, jt): return frame_mat(jt["o"], jt["z"], jt["x"])
+
+    def drive_joint(s, j, vals, follow=True, _seen=None):
+        jt = s.joints[j]; kind = jt["kind"]; dof = JOINT_DOF[kind]
+        if not dof: raise RuntimeError("a rigid joint doesn't move")
+        vals = [float(x) for x in vals][:len(dof)] + jt["vals"][len(vals):]
+        for k, lim in (jt.get("lim") or {}).items():
+            k = int(k)
+            if k < len(vals) and lim: vals[k] = min(max(vals[k], lim[0]), lim[1])
+        old = list(jt["vals"])
+        if all(abs(a - b) < 1e-12 for a, b in zip(old, vals)): return
+        J = s.joint_frame(jt); M = J @ dof_mat(kind, vals) @ np.linalg.inv(dof_mat(kind, old)) @ np.linalg.inv(J)
+        if s.comps.get(jt["a"], {}).get("ground"): raise RuntimeError(f"{jt['a']} is grounded - unground it to drive this joint")
+        s.move_comps(s.moving_set(jt["a"], skip=j), M, skip=j); jt["vals"] = vals
+        if follow:
+            _seen = (_seen or set()) | {j}
+            for ln in s.mlinks:
+                for src, dst, sign in ((ln["j1"], ln["j2"], 1), (ln["j2"], ln["j1"], -1)):
+                    if src == j and dst not in _seen and dst < len(s.joints):
+                        k1, k2 = (ln.get("k1", 0), ln.get("k2", 0)) if sign > 0 else (ln.get("k2", 0), ln.get("k1", 0))
+                        r = ln.get("ratio", 1.0) if sign > 0 else 1.0/(ln.get("ratio", 1.0) or 1.0)
+                        d = (vals[k1] - old[k1])*r; nv = list(s.joints[dst]["vals"])
+                        if k2 < len(nv): nv[k2] += d; s.drive_joint(dst, nv, True, _seen)
+
+    # ---- the timeline operations ----
+    def exec_asm(s, op):
+        t = op["t"]
+        if t == "comp":
+            name = op.get("name") or s.new_comp_name()
+            s.comps.setdefault(name, {"ground": bool(op.get("ground")), "pn": "", "desc": ""})
+            if op.get("ground") is not None: s.comps[name]["ground"] = bool(op.get("ground"))
+            for bi in sorted({r[1] for r in op.get("cbodies", []) if r[0] in ("body", "face")}):
+                if bi >= len(s.bodies): raise RuntimeError("a body for this component no longer exists")
+                nb = s.bodies[bi].restyled(); nb.comp = name; s.bodies[bi] = nb
+            if not op.get("cbodies"): s.active_comp = name
+            return
+        if t == "compprops":
+            c = s.comps.get(op["comp"])
+            if c is None: raise RuntimeError(f"no component {op['comp']}")
+            new = op.get("name")
+            for k in ("ground", "pn", "desc"):
+                if k in op: c[k] = op[k]
+            if new and new != op["comp"]:
+                if new in s.comps: raise RuntimeError(f"there's already a component called {new}")
+                s.comps = {(new if k == op["comp"] else k): v for k, v in s.comps.items()}            # keep the order
+                for i, b in enumerate(s.bodies):
+                    if getattr(b, "comp", None) == op["comp"]: nb = b.restyled(); nb.comp = new; s.bodies[i] = nb
+                for jt in s.joints:
+                    for k in ("a", "b"):
+                        if jt[k] == op["comp"]: jt[k] = new
+            return
+        if t == "joint":
+            ca, cb = s.ref_comp(op["a"]), s.ref_comp(op["b"]) if op.get("b") else None
+            if ca is None: raise RuntimeError("the first pick must be on a component (Assemble > New Component makes one from bodies)")
+            if ca == cb: raise RuntimeError("both picks are on the same component")
+            if s.comps.get(ca, {}).get("ground"):
+                if cb is None or s.comps.get(cb, {}).get("ground"): raise RuntimeError("both components are grounded")
+                ca, cb = cb, ca; ra, rb = op["b"], op["a"]
+            else: ra, rb = op["a"], op.get("b")
+            oa, za, xa = s.ref_frame(ra)
+            ob, zb, xb = s.ref_frame(rb) if rb else (V(), V(0, 0, 1), V(1, 0, 0))
+            Fb = frame_mat(ob, zb, xb)
+            if not op.get("asbuilt"):
+                flip = np.eye(4) if op.get("flip") else np.diag([1.0, -1.0, -1.0, 1.0])       # default: the two origins face each other
+                a = math.radians(op.get("angle", 0.0)); R = np.eye(4); R[:2, :2] = [[math.cos(a), -math.sin(a)], [math.sin(a), math.cos(a)]]
+                T = np.eye(4); T[2, 3] = op.get("offset", 0.0)
+                M = Fb @ T @ R @ flip @ np.linalg.inv(frame_mat(oa, za, xa))
+                s.move_comps(s.moving_set(ca), M)
+            lim = {}
+            for k in range(len(JOINT_DOF[op["kind"]])):
+                if op.get(f"lim{k}"): lim[k] = (float(op[f"lo{k}"]), float(op[f"hi{k}"]))
+            s.joints.append({"name": op.get("name") or f"Joint{len(s.joints) + 1}", "kind": op["kind"], "a": ca, "b": cb,
+                             "o": ob, "z": zb, "x": xb, "vals": [0.0]*len(JOINT_DOF[op["kind"]]), "lim": lim})
+            return
+        if t == "jdrive":
+            if op["j"] >= len(s.joints): raise RuntimeError("that joint no longer exists")
+            s.drive_joint(op["j"], op["vals"]); return
+        if t == "mlink":
+            if max(op["j1"], op["j2"]) >= len(s.joints): raise RuntimeError("that joint no longer exists")
+            s.mlinks.append({"j1": op["j1"], "k1": op.get("k1", 0), "j2": op["j2"], "k2": op.get("k2", 0), "ratio": op.get("ratio", 1.0)}); return
+        raise RuntimeError(f"unknown assembly operation {t}")
+
+    # ---- motion study: animate a joint without touching the timeline ----
+    def motion_frames(s, j, k, a, b, n):
+        base_bodies, base_joints = list(s.bodies), copy.deepcopy(s.joints)
+        out = []
+        for i in range(n + 1):
+            s.bodies, s.joints = list(base_bodies), copy.deepcopy(base_joints)
+            vals = list(s.joints[j]["vals"]); vals[k] = a + (b - a)*i/max(n, 1); s.drive_joint(j, vals)
+            out.append(list(s.bodies))
+        s.bodies, s.joints = base_bodies, base_joints
+        return out
+
+    # ---- drawing ----
+    def draw_joints(s):
+        if not s.joints or s.skedit: return
+        L = max(s.span()*0.03, 2.0)
+        glDisable(GL_LIGHTING); glDisable(GL_DEPTH_TEST); glLineWidth(2.0)
+        for jt in s.joints:
+            if not s.comps.get(jt["a"]) and jt["a"] is not None: continue
+            o, z, x = jt["o"], jt["z"].normalize(), jt["x"].normalize(); y = z.cross(x)
+            glColor3f(0.0, 0.55, 0.85); glBegin(GL_LINE_LOOP)
+            for i in range(24):
+                a = 2*math.pi*i/24; p = o + x*(L*math.cos(a)) + y*(L*math.sin(a)); glVertex3f(*p.t())
+            glEnd()
+            glBegin(GL_LINES); glColor3f(0.0, 0.55, 0.85); glVertex3f(*o.t()); glVertex3f(*(o + z*L*1.8).t())
+            glColor3f(0.9, 0.3, 0.2); glVertex3f(*o.t()); glVertex3f(*(o + x*L*1.2).t()); glEnd()
+        glEnable(GL_DEPTH_TEST); glEnable(GL_LIGHTING)
+
+    # ---- bill of materials ----
+    def bom_rows(s):
+        rows = []
+        names = list(s.comps) + ([None] if any(getattr(b, "comp", None) is None for b in s.bodies) else [])
+        for name in names:
+            ids = s.comp_bodies(name) if name else [i for i, b in enumerate(s.bodies) if getattr(b, "comp", None) is None]
+            if not ids: continue
+            vol_, mass, mats = 0.0, 0.0, set(); lo = hi = None
+            for i in ids:
+                b = s.bodies[i]; pr = s.body_props(b); vol_ += pr["volume"]; mass += pr["mass"] or 0.0
+                if b.material: mats.add(b.material)
+                lo = pr["lo"] if lo is None else V(min(lo.x, pr["lo"].x), min(lo.y, pr["lo"].y), min(lo.z, pr["lo"].z))
+                hi = pr["hi"] if hi is None else V(max(hi.x, pr["hi"].x), max(hi.y, pr["hi"].y), max(hi.z, pr["hi"].z))
+            c = s.comps.get(name, {})
+            rows.append({"name": name or "(loose bodies)", "pn": c.get("pn", ""), "desc": c.get("desc", ""), "qty": 1, "bodies": len(ids),
+                         "material": ", ".join(sorted(mats)) or "-", "mass": mass if mats else None, "volume": vol_, "size": hi - lo})
+        # identical components (same bodies, size and material) count as one line with a quantity
+        merged = []
+        for r in rows:
+            twin = next((m for m in merged if m["pn"] and m["pn"] == r["pn"]), None)
+            if twin: twin["qty"] += 1
+            else: merged.append(r)
+        return merged
+
+
+# ---------------------------------------------------------------------------------------------------------------
+#  Sheet metal (0.7): flanges, hems and folds that keep a constant thickness, and an unfolder for flat patterns
+# ---------------------------------------------------------------------------------------------------------------
+SM_DEFAULT = {"t": 1.5, "r": 1.5, "k": 0.44, "gap": 0.5}
+
+def poly_face(pts):
+    mk = BRepBuilderAPI_MakePolygon()
+    for q in pts: mk.Add(pnt(q))
+    mk.Close(); return BRepBuilderAPI_MakeFace(mk.Wire(), True).Face()
+
+def rot4(o, d, ang):
+    """4x4 rotation by ang (radians) about the line o + d*t."""
+    M = np.eye(4); M[:3] = np.array(rot_matrix(o, d, ang)); return M
+def trans4(v): M = np.eye(4); M[:3, 3] = v.t(); return M
+def apply4(M, p): return V(*(M[:3, :3] @ np.array(p.t()) + M[:3, 3]))
+def xform_shape(sh, M): return transformed(sh, mat34(M))
+
+def edge_line(e):
+    c = BRepAdaptor_Curve(e)
+    if c.GetType() != GeomAbs_Line: raise RuntimeError("pick straight edges")
+    a, b = vec(c.Value(c.FirstParameter())), vec(c.Value(c.LastParameter())); return a, b
+
+def planar_extent(f, w):
+    vs = [vec(st(BRep_Tool, "Pnt")(x)) for x in subshapes(f, TopAbs_VERTEX)]
+    ds = [p.dot(w) for p in vs]; return (max(ds) - min(ds)) if ds else 0.0
+
+def sheet_edge_info(shape, e):
+    """For a straight edge on a sheet: (a, b, nP, d_out, t) - ends, the outward normal of the big face it lies on,
+    the outward direction of the thin side face and the sheet thickness there."""
+    a, b = edge_line(e); ed = (b - a).normalize(); fs = faces_of_edge_in(shape, e)
+    flat = [(f, face_frame(f)[1]) for f in fs if BRepAdaptor_Surface(f).GetType() == GeomAbs_Plane]
+    if len(flat) != 2: raise RuntimeError("pick an edge where a flat face meets the sheet's thin side")
+    ext = [(planar_extent(f, n.cross(ed).normalize()), f, n) for f, n in flat]
+    ext.sort(key=lambda x: x[0]); t, side, d_out = ext[0]; big_n = ext[1][2]
+    return a, b, big_n, d_out, t
+
+def flange_tool(a, b, nP, d_out, t, r, ang, h, up=True):
+    """Bend + straight flange added along the edge a-b (bend starts at the edge, material stays outside the part)."""
+    ed = (b - a).normalize()
+    if up: ax_o = a + nP*r; rect = [a, b, b - nP*t, a - nP*t]
+    else: ax_o = a - nP*(t + r); rect = [a, b, b - nP*t, a - nP*t]
+    S = poly_face(rect); c = (a + b)*0.5 - nP*(t/2)
+    ax = ed if ed.cross(c - ax_o).dot(d_out) > 0 else -ed                         # rotating S this way moves it outward
+    parts = []
+    if ang > 1e-9: parts.append(revolve(S, ax_o, ax, ang))
+    R = rot4(ax_o, ax, math.radians(ang)); S2 = xform_shape(S, R); dirn = V(*(R[:3, :3] @ np.array(d_out.t())))
+    if h > 1e-9: parts.append(prism(S2, dirn, h))
+    return fuse_all(parts) if len(parts) > 1 else parts[0]
+
+def inset_ends(a, b, others, d):
+    """Pull an edge's ends in by d where they meet another picked edge (corner relief between neighbouring flanges)."""
+    ed = (b - a).normalize(); a2, b2 = a, b
+    for oa, ob in others:
+        for q in (oa, ob):
+            if (q - a).Length < 1e-6: a2 = a + ed*d
+            if (q - b).Length < 1e-6: b2 = b - ed*d
+    return a2, b2
+
+# ---------------- unfolding ----------------
+def _tangent_faces(shape):
+    """{face index: [(neighbour index, shared edge)]} for faces that continue smoothly into each other on the same side."""
+    faces = subshapes(shape, TopAbs_FACE); idx = ShapeIndex()
+    for f in faces: idx.add(f)
+    m = TopTools_IndexedDataMapOfShapeListOfShape(); TopExp.MapShapesAndAncestors_s(shape, TopAbs_EDGE, TopAbs_FACE, m)
+    nb = {i: [] for i in range(len(faces))}
+    for k in range(1, m.Extent() + 1):
+        e = to_edge(m.FindKey(k)); lst = [to_face(x) for x in m.FindFromIndex(k)]
+        if len(lst) != 2 or degenerated(e): continue
+        i, j = idx.find(lst[0]), idx.find(lst[1])
+        if i < 0 or j < 0 or i == j: continue
+        p = _emid(e)
+        try: n1, n2 = normal_at(faces[i], p)[1], normal_at(faces[j], p)[1]
+        except Exception: continue
+        if n1.dot(n2) > math.cos(math.radians(1.0)): nb[i].append((j, e)); nb[j].append((i, e))
+    return faces, nb
+
+def face_loops_pts(f, defl=0.05):
+    """Boundary wires of a face as point lists (outer first)."""
+    from OCP.BRepTools import BRepTools as _BT
+    outer = st(_BT, "OuterWire")(f); out = []
+    for w in [outer] + [x for x in subshapes(f, TopAbs_WIRE) if not x.IsSame(outer)]:
+        from OCP.BRepTools import BRepTools_WireExplorer
+        ex = BRepTools_WireExplorer(w, f); pts = []
+        while ex.More():
+            e = ex.Current(); P = edge_pts(e, defl)
+            if len(P):
+                if e.Orientation() == TopAbs_REVERSED: P = P[::-1]
+                pts += [V(*q) for q in (P if not pts else P[1:])]
+            ex.Next()
+        if len(pts) > 2: out.append(pts)
+    return out
+
+def unfold_sheet(shape, t, k, base_face=None):
+    """Flatten a constant-thickness sheet made of flat faces and cylindrical bends.
+    Returns (flat face in the base face's plane, bend lines [(p, q)], base frame (o, n, u))."""
+    faces, nb = _tangent_faces(shape)
+    planar = [i for i, f in enumerate(faces) if BRepAdaptor_Surface(f).GetType() == GeomAbs_Plane]
+    if not planar: raise RuntimeError("that body has no flat faces")
+    f0 = base_face if base_face is not None else max(planar, key=lambda i: face_area(faces[i]))
+    c0, n0 = face_frame(faces[f0])
+    M = {f0: np.eye(4)}; bends = []; order = [f0]; info = {}
+    while order:
+        i = order.pop(0)
+        for j, e in nb[i]:
+            if j in M: continue
+            srf_i = BRepAdaptor_Surface(faces[i]).GetType(); srf_j = BRepAdaptor_Surface(faces[j])
+            if srf_j.GetType() == GeomAbs_Plane:
+                if srf_i == GeomAbs_Plane: M[j] = M[i]; order.append(j); continue
+                # leaving a bend: handled when the bend was entered
+                continue
+            if srf_j.GetType() != GeomAbs_Cylinder or srf_i != GeomAbs_Plane: continue
+            cyl = srf_j.Cylinder(); ax = cyl.Axis(); ao, ad = vec(ax.Location()), vec(ax.Direction()).normalize(); Rs = cyl.Radius()
+            ea, eb = edge_line(e); foot = lambda p: ao + ad*((p - ao).dot(ad))
+            r0 = ea - foot(ea)
+            fm = centroid(faces[j]); rm = fm - foot(fm)
+            rot_ax = ad if ad.dot(r0.cross(rm)) > 0 else -ad
+            # span of the bend: the largest angle of the bend face's vertices from the start line
+            ang = 0.0
+            for v_ in subshapes(faces[j], TopAbs_VERTEX):
+                p = vec(st(BRep_Tool, "Pnt")(v_)); rv = p - foot(p)
+                if rv.Length < 1e-9: continue
+                a_ = math.atan2(rot_ax.dot(r0.cross(rv)), r0.dot(rv))
+                if a_ < -1e-6: a_ += 2*math.pi
+                ang = max(ang, a_)
+            if ang < 1e-6: continue
+            p_in = fm; n_in = normal_at(faces[j], fm)[1]
+            inner = n_in.dot(p_in - foot(p_in)) < 0
+            Rn = Rs + k*t if inner else Rs - (1 - k)*t
+            d_out = rot_ax.cross(r0).normalize()
+            L = ang*Rn
+            info[j] = dict(ao=ao, rot_ax=rot_ax, r0=r0, Rn=Rn, d_out=d_out, ang=ang, start=ea, Mbase=M[i])
+            M[j] = M[i]
+            bends.append((M[i], ea, eb, d_out, L))
+            Mq = M[i] @ trans4(d_out*L) @ rot4(ao, rot_ax, -ang)
+            for q, e2 in nb[j]:
+                if q in M or q == i: continue
+                if BRepAdaptor_Surface(faces[q]).GetType() == GeomAbs_Plane: M[q] = Mq; order.append(q)
+    # flat outline: every reached face mapped into the base plane
+    pieces = []
+    for i, Mi in M.items():
+        f = faces[i]
+        if i in info:
+            d = info[i]; ao, ra, r0, Rn = d["ao"], d["rot_ax"], d["r0"], d["Rn"]; base = d["start"]
+            ad = ra.normalize()
+            def mp(p, d=d, ao=ao, ra=ra, r0=r0, Rn=Rn, base=base, ad=ad):
+                ft = ao + ad*((p - ao).dot(ad)); rv = p - ft
+                a_ = math.atan2(ra.dot(r0.cross(rv)), r0.dot(rv))
+                if a_ < -1e-6: a_ += 2*math.pi
+                along = ad*((p - base).dot(ad))
+                return apply4(d["Mbase"], base + along + d["d_out"]*(a_*Rn))
+        else:
+            mp = lambda p, Mi=Mi: apply4(Mi, p)
+        loops = face_loops_pts(f)
+        if not loops: continue
+        try:
+            fc = poly_face([mp(p) for p in loops[0]])
+            for h in loops[1:]: fc = as_face(boolean(fc, poly_face([mp(p) for p in h]), "cut"))
+            pieces.append(fc)
+        except Exception: pass
+    if not pieces: raise RuntimeError("couldn't flatten that body")
+    flat = clean(fuse_all(pieces)) if len(pieces) > 1 else pieces[0]
+    lines = []
+    for Mi, ea, eb, d_out, L in bends:
+        lines.append((apply4(Mi, ea + d_out*(L/2)), apply4(Mi, eb + d_out*(L/2))))
+    u = perp_dir(n0)
+    return flat, lines, (c0, n0, u)
+
+def flat_solid(flat, n0, t):
+    return prism(flat, -n0, t)
+
+def flat_dxf(path, flat, lines, frame):
+    """Outline (layer OUTLINE) and bend centre lines (layer BEND) in the base face's 2D frame."""
+    o, n, u = frame; v = n.cross(u)
+    to2 = lambda p: ((p - o).dot(u), (p - o).dot(v))
+    L = ["0", "SECTION", "2", "ENTITIES"]
+    for e in subshapes(flat, TopAbs_EDGE):
+        P = edge_pts(e, 0.01)
+        for p1, p2 in zip(P, P[1:]):
+            (x1, y1), (x2, y2) = to2(V(*p1)), to2(V(*p2))
+            L += ["0", "LINE", "8", "OUTLINE", "10", f"{x1:.4f}", "20", f"{y1:.4f}", "11", f"{x2:.4f}", "21", f"{y2:.4f}"]
+    for a, b in lines:
+        (x1, y1), (x2, y2) = to2(a), to2(b)
+        L += ["0", "LINE", "8", "BEND", "62", "1", "10", f"{x1:.4f}", "20", f"{y1:.4f}", "11", f"{x2:.4f}", "21", f"{y2:.4f}"]
+    L += ["0", "ENDSEC", "0", "EOF"]
+    with open(path, "w", encoding="utf-8") as fh: fh.write("\n".join(L) + "\n")
+
+SM_OPS = ("smrule", "sbase", "sflange", "shem", "sfold", "unfold", "refold", "flatpattern")
+
+class SheetMixin:
+    def sheet_body(s, shape, look=None, name=None):
+        b = Body(shape)
+        if look is not None: b.copy_look(look)
+        b.sheet = dict(s.sm)
+        if name: b.name = name
+        return b
+
+    def sheet_target(s, refs):
+        bis = sorted({r[1] for r in refs if r[0] in ("body", "face", "edge")})
+        if not bis: raise RuntimeError("pick a sheet metal body")
+        return bis
+
+    def exec_sheet(s, op):
+        t = op["t"]; sm = s.sm
+        if t == "smrule":
+            s.sm = {"t": op["thick"], "r": op["radius"], "k": op["kfactor"], "gap": op.get("gap", sm.get("gap", 0.5))}; return
+        if t == "sbase":
+            regs = op["profiles"]
+            if not regs: raise RuntimeError("pick sketch profiles")
+            faces = [s.ref_face(r) for r in regs]; pl = s.ref_plane(regs[0]); n = pl.n*(-1 if op.get("flip") else 1)
+            sh = fuse_all([prism(f, n, sm["t"]) for f in faces]) if len(faces) > 1 else prism(faces[0], n, sm["t"])
+            for x in solids(clean(sh)): s.bodies.append(s.sheet_body(x))
+            s.hide_sketches_of(regs); return
+        if t in ("sflange", "shem"):
+            groups = {}
+            for r in op["edges"]: groups.setdefault(r[1], []).append(r[2])
+            for bi, eis in sorted(groups.items(), reverse=True):
+                b = s.bodies[bi]; infos = [sheet_edge_info(b.shape, b.eds[ei]) for ei in eis]
+                th = infos[0][4]; rr = op.get("r") if op.get("custom_r") else sm["r"]
+                ends = [(a, bb) for a, bb, *_ in infos]; tools = []
+                for k_, (a, bb, nP, d_out, tt) in enumerate(infos):
+                    others = ends[:k_] + ends[k_ + 1:]
+                    if t == "shem":
+                        gap = op.get("gap", sm["gap"]); a2, b2 = inset_ends(a, bb, others, gap/2 + tt)
+                        tools.append(flange_tool(a2, b2, nP, d_out, tt, gap/2, 180.0, op["h"], not op.get("flip")))
+                    else:
+                        a2, b2 = inset_ends(a, bb, others, rr + tt + sm.get("gap", 0.5)/2)
+                        tools.append(flange_tool(a2, b2, nP, d_out, tt, rr, op.get("angle", 90.0), op["h"], not op.get("flip")))
+                sh = b.shape
+                for x in tools: sh = boolean(sh, x, "fuse")
+                parts = solids(clean(sh)); vmax = abs(volume(b.shape)) + sum(abs(volume(x)) for x in tools)
+                if not parts or sum(abs(volume(x)) for x in parts) > vmax*(1 + 1e-6) + 1e-6:
+                    raise RuntimeError("the new wall runs into the existing part - pick other edges or flip it")
+                s.bodies[bi:bi + 1] = [s.sheet_body(x, b) for x in parts]
+            return
+        if t == "sfold":
+            r = op["line"]
+            if r[0] != "curve": raise RuntimeError("pick a sketch line on the sheet")
+            sk = s.sketches[r[1]]; c = sk.geo.C[r[2]]
+            if c["k"] != "line": raise RuntimeError("the fold line must be a straight sketch line")
+            a, bb = sk.plane.w(sk.geo.v(c["p"][0])), sk.plane.w(sk.geo.v(c["p"][1])); mid = (a + bb)*0.5; ed = (bb - a).normalize()
+            bi = None
+            for i, b in enumerate(s.bodies):
+                for fid, f in enumerate(b.faces):
+                    nn = b.face_normal(fid)
+                    if nn is None: continue
+                    if abs(abs(nn.dot(sk.plane.n)) - 1) < 1e-6 and abs((mid - centroid(f)).dot(nn)) < 1e-6 and classify_in_face(f, mid):
+                        bi, nP = i, nn; break
+                if bi is not None: break
+            if bi is None: raise RuntimeError("the fold line has to lie on a flat face of a sheet body")
+            b = s.bodies[bi]; th = b.sheet["t"] if getattr(b, "sheet", None) else sm["t"]; rr = sm["r"]; kk = sm["k"]
+            ang = op.get("angle", 90.0); up = not op.get("flip"); d = nP.cross(ed).normalize()*(-1 if op.get("side") else 1)
+            w = math.radians(ang)*(rr + kk*th); big = s.span()*4 + 100
+            oA, oB = mid - d*(w/2), mid + d*(w/2)
+            A = boolean(b.shape, prism(big_plane_face(oA, d, big), -d, big), "common")
+            B = boolean(b.shape, prism(big_plane_face(oB, d, big), d, big), "common")
+            S = as_face(boolean(b.shape, big_plane_face(oA, d, big), "common"))
+            ax_o = oA + nP*rr if up else oA - nP*(th + rr)
+            cS = centroid(S); ax = ed if ed.cross(cS - ax_o).dot(d) > 0 else -ed
+            bend = revolve(S, ax_o, ax, ang)
+            Mb = rot4(ax_o, ax, math.radians(ang)) @ trans4(-d*w)
+            sh = fuse_all([A, bend, xform_shape(B, Mb)])
+            s.bodies[bi:bi + 1] = [s.sheet_body(x, b) for x in solids(clean(sh))]
+            s.hide_sketches_of([r]); return
+        if t in ("unfold", "flatpattern"):
+            for bi in reversed(s.sheet_target(op["targets"])):
+                b = s.bodies[bi]; th = b.sheet["t"] if getattr(b, "sheet", None) else sm["t"]; kk = b.sheet["k"] if getattr(b, "sheet", None) else sm["k"]
+                flat, lines, (o, n, u) = unfold_sheet(b.shape, th, kk)
+                fs = flat_solid(flat, n, th)
+                if t == "unfold":
+                    nb = s.sheet_body(fs, b); nb.folded = b.shape; nb.bend_lines = lines; s.bodies[bi] = nb
+                else:                                                    # lay the blank on the ground, beside the part
+                    M = np.linalg.inv(frame_mat(o, n, u)); M[2, 3] += th
+                    lo, hi = bbox(xform_shape(fs, M)); M = trans4(V(b.hi.x + 20.0 - lo.x, b.lo.y - lo.y, 0)) @ M
+                    nb = s.sheet_body(xform_shape(fs, M), b, f"{getattr(b, 'name', None) or 'Body' + str(bi + 1)} flat pattern")
+                    nb.bend_lines = [(apply4(M, p), apply4(M, q)) for p, q in lines]; nb.flat_of = bi; s.bodies.append(nb)
+            return
+        if t == "refold":
+            for bi in s.sheet_target(op["targets"]):
+                b = s.bodies[bi]
+                if getattr(b, "folded", None) is None: raise RuntimeError("that body isn't unfolded")
+                s.bodies[bi] = s.sheet_body(b.folded, b)
+            return
+        raise RuntimeError(f"unknown sheet metal operation {t}")
+
+    def draw_bend_lines(s):
+        lines = [(p, q) for b in s.bodies if b.visible for p, q in (getattr(b, "bend_lines", None) or [])]
+        if not lines or s.skedit: return
+        glDisable(GL_LIGHTING); glEnable(GL_LINE_STIPPLE); glLineStipple(2, 0x33FF); glLineWidth(1.6); glColor3f(0.85, 0.2, 0.2)
+        glBegin(GL_LINES)
+        for p, q in lines: glVertex3f(*p.t()); glVertex3f(*q.t())
+        glEnd(); glDisable(GL_LINE_STIPPLE); glEnable(GL_LIGHTING)
+
+
+# ---------------------------------------------------------------------------------------------------------------
+#  Plastic part features (0.7): boss, lip / groove, snap-fit hook
+# ---------------------------------------------------------------------------------------------------------------
+PL_OPS = ("boss", "lipgroove", "snapfit")
+from OCP.BRepPrimAPI import BRepPrimAPI_MakeCone
+
+def cyl_solid(p, n, r, h): return BRepPrimAPI_MakeCylinder(gp_Ax2(pnt(p), gdir(n)), r, h).Shape()
+def cone_solid(p, n, r1, r2, h):
+    if abs(r1 - r2) < 1e-9: return cyl_solid(p, n, r1, h)
+    return BRepPrimAPI_MakeCone(gp_Ax2(pnt(p), gdir(n)), r1, r2, h).Shape()
+
+def box_frame(o, u, v, n, a, b, c):
+    """Box with one corner at o and edges a·u, b·v, c·n."""
+    pts = [o, o + u*a, o + u*a + v*b, o + v*b]; return prism(poly_face(pts), n, c)
+
+def inner_face(ring):
+    """The ring face's hole, filled (the opening a lip / groove runs around)."""
+    from OCP.BRepTools import BRepTools as _BT
+    outer = st(_BT, "OuterWire")(ring); holes = [w for w in subshapes(ring, TopAbs_WIRE) if not w.IsSame(outer)]
+    if not holes: raise RuntimeError("pick the flat rim of a shelled part (a face with an opening in it)")
+    holes.sort(key=lambda w: -abs(face_area(BRepBuilderAPI_MakeFace(w, True).Face())))
+    return BRepBuilderAPI_MakeFace(holes[0], True).Face()
+
+class PlasticMixin:
+    def exec_plastic(s, op):
+        t = op["t"]
+        if t == "boss":
+            r = op["face"]; b = s.bodies[r[1]]; n = b.face_normal(r[2])
+            if n is None: raise RuntimeError("bosses go on flat faces")
+            n = -n if op.get("flip") else n; p = s.ref_point(r); h = op["h"]
+            dr = math.tan(math.radians(op.get("draft", 0.0)))*h; R = op["od"]/2
+            tool = cone_solid(p, n, R + dr, R, h)
+            ribs = int(op.get("ribs", 0))
+            if ribs:
+                u = perp_dir(n); v_ = n.cross(u); tw, rl, rh = op.get("rib_t", 1.2), op.get("rib_l", R*1.2), h*op.get("rib_h", 0.7)
+                for k in range(ribs):
+                    a = 2*math.pi*k/ribs; d = u*math.cos(a) + v_*math.sin(a); w_ = n.cross(d)
+                    o = p + d*(R*0.5) - w_*(tw/2)
+                    rib = prism(poly_face([o, o + d*(R*0.5 + rl), o + d*(R*0.5) + n*rh]), w_, tw)
+                    tool = boolean(tool, rib, "fuse")
+            sh = boolean(b.shape, tool, "fuse")
+            if op.get("id", 0) > 0:
+                depth = op.get("hole_d") or h
+                sh = boolean(sh, cyl_solid(p + n*(h + 0.01), -n, op["id"]/2, depth + 0.01), "cut")
+            s.replace_body(r[1], sh); return
+        if t == "lipgroove":
+            r = op["face"]; b = s.bodies[r[1]]; F = b.faces[r[2]]; n = b.face_normal(r[2])
+            if n is None: raise RuntimeError("pick the flat rim of the part")
+            hole = inner_face(F); w, h, c = op["w"], op["h"], op.get("clear", 0.1)
+            if op.get("kind", "lip") == "lip":
+                band = as_face(boolean(offset_face(hole, w), hole, "cut")); tool = prism(band, n, h)
+                s.replace_body(r[1], boolean(b.shape, tool, "fuse"))
+            else:
+                band = as_face(boolean(offset_face(hole, w + c), offset_face(hole, -c), "cut"))
+                tool = prism(band, -n, h + c)
+                s.replace_body(r[1], boolean(b.shape, tool, "cut"))
+            return
+        if t == "snapfit":
+            r = op["face"]; b = s.bodies[r[1]]; n = b.face_normal(r[2])
+            if n is None: raise RuntimeError("snap fits go on flat faces")
+            n = -n if op.get("flip") else n; p = s.ref_point(r)
+            u = perp_dir(n); a = math.radians(op.get("rot", 0.0)); v0 = n.cross(u); d = u*math.cos(a) + v0*math.sin(a); wv = n.cross(d)
+            L, bw, th, y, ang = op["L"], op["b"], op["th"], op["y"], op.get("ang", 30.0)
+            o = p - d*(th/2) - wv*(bw/2)
+            beam = box_frame(o, d, wv, n, th, bw, L)
+            hl = y/math.tan(math.radians(max(5.0, min(85.0, ang))))                  # hook ramp length
+            top = o + n*L; q0 = top + d*th
+            A = q0 - n*(y*0.5 + hl); B = A + d*y; B2 = B + n*(y*0.5)              # flat catch, short land, lead-in ramp
+            hook = prism(poly_face([A, B, B2, q0]), wv, bw)
+            tool = boolean(beam, hook, "fuse")
+            s.replace_body(r[1], boolean(b.shape, tool, "fuse")); return
+        raise RuntimeError(f"unknown plastic operation {t}")
+
+def make_plastic_commands():
+    out = {}
+    def add(c): c.group = "PLASTIC"; out[c.name] = c
+    add(Cmd("boss", "BOSS", "boss", [
+        Fsel("face", "Position (click a flat face)", {"face"}), Flen("od", "Outer Ø", 8.0, 0.1), Flen("id", "Hole Ø (0 = none)", 3.0, 0.0),
+        Flen("h", "Height", 10.0, 0.1), Flen("hole_d", "Hole depth (0 = full)", 0.0, 0.0), Fang("draft", "Draft", 0.5, 0.0, 15.0),
+        Fint("ribs", "Ribs", 0, 0, 8), Flen("rib_t", "Rib thickness", 1.2, 0.1, show=lambda v: v["ribs"] > 0),
+        Flen("rib_l", "Rib length", 4.0, 0.1, show=lambda v: v["ribs"] > 0), Fcheck("flip", "Flip direction")],
+        hint="A screw boss where you click: a drafted post with a pilot hole, optionally braced with ribs."))
+    add(Cmd("lipgroove", "LIP / GROOVE", "lipgroove", [
+        Fsel("face", "Rim face", {"face"}), Fcombo("kind", "Type", "lip", [("Lip (raised)", "lip"), ("Groove (cut)", "groove")]),
+        Flen("w", "Width", 1.0, 0.05), Flen("h", "Height / depth", 1.5, 0.05), Flen("clear", "Clearance (groove)", 0.1, 0.0, show=lambda v: v["kind"] == "groove")],
+        hint="Pick the flat rim of a shelled half. A lip stands up along the inside of the wall; a groove is cut to take the "
+             "other half's lip (with clearance)."))
+    add(Cmd("snapfit", "SNAP FIT", "snapfit", [
+        Fsel("face", "Position (click a flat face)", {"face"}), Flen("L", "Beam length", 10.0, 0.5), Flen("b", "Beam width", 4.0, 0.2),
+        Flen("th", "Beam thickness", 1.2, 0.2), Flen("y", "Hook depth", 0.8, 0.05), Fang("ang", "Lead-in angle", 30.0, 5.0, 85.0),
+        Fang("rot", "Rotation", 0.0), Fcheck("flip", "Flip direction")],
+        hint="A cantilever snap hook standing on the face where you click. Rotation turns which way the hook faces."))
+    return out
+
+
+# ---------------------------------------------------------------------------------------------------------------
+#  Local rendering (0.7): environment light, soft ground shadow and reflection, ambient occlusion, high-res PNG,
+#  turntables; explode storyboards
+# ---------------------------------------------------------------------------------------------------------------
+ENVS = {"studio": dict(sky=(0.92, 0.94, 0.97), ground=(0.42, 0.40, 0.38), bg_top=(0.97, 0.97, 0.98), bg_bot=(0.80, 0.82, 0.85),
+                       key=(1.0, 0.98, 0.95), keydir=(-0.45, -0.6, 0.66), fill=(0.35, 0.38, 0.45), filldir=(0.7, 0.2, 0.3), floor=(0.88, 0.88, 0.89)),
+        "warm": dict(sky=(0.98, 0.93, 0.85), ground=(0.40, 0.33, 0.27), bg_top=(0.99, 0.95, 0.88), bg_bot=(0.86, 0.80, 0.72),
+                     key=(1.0, 0.92, 0.80), keydir=(-0.6, -0.4, 0.7), fill=(0.30, 0.34, 0.45), filldir=(0.6, 0.5, 0.25), floor=(0.90, 0.86, 0.80)),
+        "dark": dict(sky=(0.45, 0.50, 0.58), ground=(0.10, 0.10, 0.12), bg_top=(0.20, 0.21, 0.24), bg_bot=(0.05, 0.05, 0.06),
+                     key=(1.0, 1.0, 1.0), keydir=(-0.3, -0.7, 0.65), fill=(0.25, 0.30, 0.42), filldir=(0.8, 0.3, 0.2), floor=(0.13, 0.13, 0.15))}
+METALS = {"Steel", "Stainless steel", "Aluminium 6061", "Brass", "Copper", "Titanium"}
+MAT_ALBEDO = {"Steel": (0.62, 0.63, 0.65), "Stainless steel": (0.72, 0.72, 0.74), "Aluminium 6061": (0.80, 0.81, 0.83), "Brass": (0.80, 0.65, 0.33),
+              "Copper": (0.80, 0.48, 0.32), "Titanium": (0.62, 0.60, 0.58)}
+
+def shade_vertices(P, N, eye, albedo, metal, env):
+    """Per-vertex colour: hemisphere ambient + key/fill diffuse + Blinn specular (+ environment reflection for metals)."""
+    N = N/np.maximum(np.linalg.norm(N, axis=1, keepdims=True), 1e-12)
+    Vd = np.array(eye.t()) - P; Vd /= np.maximum(np.linalg.norm(Vd, axis=1, keepdims=True), 1e-12)
+    flip = (N*Vd).sum(1) < 0; N[flip] = -N[flip]                           # two-sided
+    sky, gnd = np.array(env["sky"]), np.array(env["ground"]); a = np.array(albedo)
+    hemi = gnd + (sky - gnd)*((N[:, 2:3] + 1)/2)
+    col = a*hemi*0.55
+    for L, c, sp in ((env["keydir"], env["key"], 1.0), (env["filldir"], env["fill"], 0.25)):
+        L = np.array(L)/np.linalg.norm(L); d = np.clip(N @ L, 0, 1)[:, None]
+        col += a*np.array(c)*d*0.75
+        H = L + Vd; H /= np.maximum(np.linalg.norm(H, axis=1, keepdims=True), 1e-12)
+        spec = np.clip((N*H).sum(1), 0, 1)**(60 if metal else 30)
+        col += np.array(c)*spec[:, None]*(0.6 if metal else 0.25)*sp
+    if metal:
+        R = 2*(N*Vd).sum(1, keepdims=True)*N - Vd
+        envc = gnd + (sky - gnd)*np.clip((R[:, 2:3] + 0.25)*1.4, 0, 1)
+        col = col*0.55 + a*envc*0.55
+    return np.clip(col, 0, 1).astype(np.float32)
+
+def ssao(depth, near, far, ortho, strength=0.6, radius=None):
+    """Screen-space ambient occlusion from a depth buffer (numpy). Returns an occlusion factor image (1 = open)."""
+    d = depth.astype(np.float64); bg = d >= 0.99999
+    z = (near + d*(far - near)) if ortho else (2*near*far/(far + near - (2*d - 1)*(far - near)))
+    h, w = z.shape; r0 = radius or max(2, int(min(h, w)/120)); occ = np.zeros_like(z); cnt = 0
+    span = np.nanmedian(z[~bg]) if (~bg).any() else 1.0; rng = span*0.01
+    for r in (r0, r0*2, r0*4):
+        for dx, dy in ((1, 0), (0, 1), (1, 1), (1, -1)):                 # opposite pairs: flat or slanted planes cancel out
+            za = np.roll(np.roll(z, dy*r, 0), dx*r, 1); zb = np.roll(np.roll(z, -dy*r, 0), -dx*r, 1)
+            diff = z - (za + zb)/2; ok = (np.abs(z - za) < rng*20) & (np.abs(z - zb) < rng*20)
+            occ += np.clip(diff/rng, 0, 1)*ok; cnt += 1
+    occ /= cnt; occ[bg] = 0
+    k = np.ones(5)/5
+    for ax in (0, 1): occ = np.apply_along_axis(lambda m: np.convolve(m, k, mode="same"), ax, occ)
+    return np.clip(1 - strength*occ*2.2, 0, 1)
+
+def turntable_cam(yaw0, i, n): return yaw0 + 2*math.pi*i/n
+
+class RenderMixin:
+    def render_image(s, W_, H_, o):
+        """Offscreen render of the visible bodies. o: env, reflect, ao, shadow, ss (supersampling). Returns a QImage."""
+        from PySide6.QtOpenGL import QOpenGLFramebufferObject, QOpenGLFramebufferObjectFormat
+        env = ENVS[o.get("env", "studio")]; ss = int(o.get("ss", 2))
+        mx = int(glGetIntegerv(GL_MAX_RENDERBUFFER_SIZE)) if True else 8192
+        ss = max(1, min(ss, mx//max(W_, H_, 1)))
+        w, h = W_*ss, H_*ss
+        s.makeCurrent()
+        fmt = QOpenGLFramebufferObjectFormat(); fmt.setAttachment(QOpenGLFramebufferObject.Depth); fmt.setInternalTextureFormat(GL_RGBA8)
+        fbo = QOpenGLFramebufferObject(w, h, fmt); fbo.bind()
+        try:
+            glViewport(0, 0, w, h); glUseProgram(0)
+            for cap in (GL_LIGHTING, GL_TEXTURE_2D, GL_CULL_FACE, GL_CLIP_PLANE0, GL_CLIP_PLANE1, GL_CLIP_PLANE2, GL_CLIP_PLANE3, GL_CLIP_PLANE4): glDisable(cap)
+            glClearColor(*env["bg_bot"], 1); glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
+            glDisable(GL_DEPTH_TEST); glMatrixMode(GL_PROJECTION); glLoadIdentity(); glMatrixMode(GL_MODELVIEW); glLoadIdentity()
+            glBegin(GL_QUADS); glColor3f(*env["bg_top"]); glVertex2f(-1, 1); glVertex2f(1, 1); glColor3f(*env["bg_bot"]); glVertex2f(1, -1); glVertex2f(-1, -1); glEnd()
+            glEnable(GL_DEPTH_TEST); glDepthFunc(GL_LEQUAL); glDepthMask(GL_TRUE)
+            glMatrixMode(GL_PROJECTION); glLoadIdentity(); near, far = s.dist/50, s.dist*2000
+            if s.ortho: hh = s.dist*math.tan(math.radians(22.5)); glOrtho(-hh*w/h, hh*w/h, -hh, hh, -s.dist*200, s.dist*200); near, far = -s.dist*200, s.dist*200
+            else: gluPerspective(45, w/h, near, far)
+            glMatrixMode(GL_MODELVIEW); glLoadIdentity(); e, t = s.eye(), s.target; gluLookAt(e.x, e.y, e.z, t.x, t.y, t.z, 0, 0, 1)
+            glEnable(GL_BLEND); glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE_MINUS_SRC_ALPHA)   # keep it opaque
+            bodies = [(i, b) for i, b in enumerate(s.bodies) if b.visible and len(b.tv)]
+            if not bodies: raise RuntimeError("nothing to render")
+            off = lambda i: np.array((s.disp_off or {}).get(i, (0, 0, 0)), float)
+            P_all = np.concatenate([b.tv.reshape(-1, 3) + off(i) for i, b in bodies]); zmin = float(P_all[:, 2].min())
+            span = float(np.ptp(P_all, 0).max()) or 1.0; c = P_all.mean(0)
+            arrays = []
+            for i, b in bodies:
+                P = (b.tv.reshape(-1, 3) + off(i)).astype(np.float32); N = b.vn.reshape(-1, 3).astype(np.float64)
+                alb = MAT_ALBEDO.get(b.material) or b.color or BODY
+                arrays.append((P, N, alb, b.material in METALS))
+            def draw(mirror=False, dim=1.0):
+                for P, N, alb, metal in arrays:
+                    PP, NN = P.astype(np.float64), N.copy()
+                    if mirror: PP = PP.copy(); PP[:, 2] = 2*zmin - PP[:, 2]; NN[:, 2] = -NN[:, 2]
+                    col = shade_vertices(PP, NN, e, alb, metal, env)*dim
+                    glEnableClientState(GL_VERTEX_ARRAY); glEnableClientState(GL_COLOR_ARRAY)
+                    glVertexPointer(3, GL_FLOAT, 0, np.ascontiguousarray(PP, np.float32)); glColorPointer(3, GL_FLOAT, 0, np.ascontiguousarray(col))
+                    glDrawArrays(GL_TRIANGLES, 0, len(PP)); glDisableClientState(GL_COLOR_ARRAY); glDisableClientState(GL_VERTEX_ARRAY)
+            R = span*6; fl = np.array(env["floor"])
+            def floor(alpha_c, alpha_e):
+                glBegin(GL_TRIANGLE_FAN); glColor4f(*fl, alpha_c); glVertex3f(c[0], c[1], zmin)
+                for k in range(65):
+                    a = 2*math.pi*k/64; glColor4f(*env["bg_bot"], alpha_e); glVertex3f(c[0] + R*math.cos(a), c[1] + R*math.sin(a), zmin)
+                glEnd()
+            if o.get("reflect", True):
+                draw(mirror=True, dim=0.9); glClear(GL_DEPTH_BUFFER_BIT); glDepthMask(GL_FALSE); floor(0.78, 1.0); glDepthMask(GL_TRUE)
+            else:
+                glDepthMask(GL_FALSE); floor(1.0, 1.0); glDepthMask(GL_TRUE)
+            if o.get("shadow", True):                                   # soft contact shadow: the parts squashed onto the floor, jittered
+                glDepthMask(GL_FALSE); glEnableClientState(GL_VERTEX_ARRAY)
+                L = np.array(env["keydir"]); L = L/np.linalg.norm(L)
+                for j in range(16):
+                    jit = np.array([math.cos(j*2.4), math.sin(j*2.4), 0])*0.3*math.sqrt(j/16)
+                    Ld = L + jit; Ld = Ld/np.linalg.norm(Ld)
+                    for P, _, _, _ in arrays:
+                        Q = P.astype(np.float64).copy(); t_ = (Q[:, 2] - zmin)/max(Ld[2], 0.2); Q -= np.outer(t_, Ld); Q[:, 2] = zmin + span*1e-4
+                        glColor4f(0, 0, 0, 0.032); glVertexPointer(3, GL_FLOAT, 0, np.ascontiguousarray(Q, np.float32)); glDrawArrays(GL_TRIANGLES, 0, len(Q))
+                for j in range(8):                                          # contact halo round the footprint
+                    for P, _, _, _ in arrays:
+                        Q = P.astype(np.float64).copy(); cc = Q.mean(0); Q[:, :2] = cc[:2] + (Q[:, :2] - cc[:2])*(1.0 + 0.025*(j + 1)); Q[:, 2] = zmin + span*1e-4
+                        glColor4f(0, 0, 0, 0.035); glVertexPointer(3, GL_FLOAT, 0, np.ascontiguousarray(Q, np.float32)); glDrawArrays(GL_TRIANGLES, 0, len(Q))
+                glDisableClientState(GL_VERTEX_ARRAY); glDepthMask(GL_TRUE)
+            draw()
+            img = fbo.toImage().convertToFormat(G.QImage.Format_RGB888)
+            if o.get("ao", True):
+                dep = glReadPixels(0, 0, w, h, GL_DEPTH_COMPONENT, GL_FLOAT)
+                dep = np.frombuffer(dep, np.float32).reshape(h, w)[::-1]
+                occ = ssao(dep, near, far, s.ortho)
+                ptr = img.bits(); arr = np.frombuffer(ptr, np.uint8, count=img.bytesPerLine()*h).reshape(h, img.bytesPerLine())[:, :w*3].reshape(h, w, 3)
+                out = (arr.astype(np.float32)*occ[:, :, None]).clip(0, 255).astype(np.uint8)
+                img = G.QImage(out.tobytes(), w, h, w*3, G.QImage.Format_RGB888).copy()
+        finally:
+            fbo.release(); s.doneCurrent()
+        if ss > 1: img = img.scaled(W_, H_, C.Qt.IgnoreAspectRatio, C.Qt.SmoothTransformation)
+        s.update(); return img
+
+    # ---- explode storyboard ----
+    def explode_auto(s, factor=1.0):
+        """One step per body (or component), pushed out from the assembly centre."""
+        groups = {}
+        for i, b in enumerate(s.bodies):
+            if b.visible: groups.setdefault(getattr(b, "comp", None) or f"#{i}", []).append(i)
+        if len(groups) < 2: raise RuntimeError("explode needs at least two visible bodies or components")
+        cen = lambda ids: sum(((s.bodies[i].lo + s.bodies[i].hi)*0.5 for i in ids), V())*(1.0/len(ids))
+        allc = cen([i for ids in groups.values() for i in ids]); span = s.span(); steps = []
+        for name, ids in groups.items():
+            d = cen(ids) - allc
+            if d.Length < 1e-6: d = V(0, 0, 1)
+            steps.append({"bodies": ids, "d": (d.normalize()*(span*0.35*factor) + d*(0.4*factor)).t(), "dur": 1.0})
+        steps.sort(key=lambda x: -V(*x["d"]).z)
+        return steps
+
+    def explode_offsets(s, steps, t):
+        """Body offsets at time t (seconds) through a storyboard of sequential steps."""
+        off = {}; t0 = 0.0
+        for st_ in steps:
+            p = 1.0 if st_["dur"] <= 0 else min(1.0, max(0.0, (t - t0)/st_["dur"])); p = p*p*(3 - 2*p)
+            for i in st_["bodies"]:
+                cur = off.get(i, (0, 0, 0)); off[i] = tuple(cur[k] + st_["d"][k]*p for k in range(3))
+            t0 += st_["dur"]
+        return off
+
+# ---------------------------------------------------------------------------------------------------------------
+#  Manufacture (0.7): setup / stock, tool library, 2D face, contour, pocket and drill toolpaths, preview, G-code
+# ---------------------------------------------------------------------------------------------------------------
+CAM_OPS = ("cam_setup", "cam_face", "cam_contour", "cam_pocket", "cam_drill")
+DEFAULT_TOOLS = [
+    {"n": 1, "name": "6 mm flat end mill", "type": "flat", "dia": 6.0, "flutes": 3, "rpm": 12000, "feed": 900.0, "plunge": 300.0, "stepdown": 1.5},
+    {"n": 2, "name": "3 mm flat end mill", "type": "flat", "dia": 3.0, "flutes": 2, "rpm": 16000, "feed": 600.0, "plunge": 200.0, "stepdown": 0.8},
+    {"n": 3, "name": "5 mm drill", "type": "drill", "dia": 5.0, "flutes": 2, "rpm": 3000, "feed": 150.0, "plunge": 150.0, "stepdown": 2.0},
+    {"n": 4, "name": "6 mm ball end mill", "type": "ball", "dia": 6.0, "flutes": 2, "rpm": 12000, "feed": 800.0, "plunge": 250.0, "stepdown": 1.0},
+    {"n": 5, "name": "25 mm face mill", "type": "flat", "dia": 25.0, "flutes": 4, "rpm": 6000, "feed": 1200.0, "plunge": 300.0, "stepdown": 1.0}]
+
+def new_cam():
+    return {"setup": {"origin": "corner", "side": 2.0, "top": 1.0, "bottom": 0.0, "safe": 5.0, "retract": 2.0},
+            "tools": copy.deepcopy(DEFAULT_TOOLS), "ops": []}
+
+def wire_xy_pts(w, z=None, defl=0.02):
+    """A wire's points (closed polyline) in XY, optionally at a fixed z."""
+    pts = []
+    from OCP.BRepTools import BRepTools_WireExplorer
+    ex = BRepTools_WireExplorer(w)
+    while ex.More():
+        e = ex.Current(); P = edge_pts(e, defl)
+        if len(P):
+            if e.Orientation() == TopAbs_REVERSED: P = P[::-1]
+            pts += [tuple(q) for q in (P if not pts else P[1:])]
+        ex.Next()
+    if pts and (np.linalg.norm(np.array(pts[0]) - np.array(pts[-1])) > 1e-6): pts.append(pts[0])
+    return [(x, y, z if z is not None else zz) for x, y, zz in pts]
+
+def flat_face_xy(f):
+    """A horizontal planar face moved to z = 0 (for 2D offsets)."""
+    c, n = face_frame(f)
+    if abs(abs(n.z) - 1) > 1e-6: raise RuntimeError("pick horizontal (flat, upward or downward) faces")
+    return to_face(transformed(f, [[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, -c.z]])), c.z
+
+def offset_loops(face0, d):
+    """Wires of a 2D offset (d > 0 grows); [] once the offset closes up."""
+    try: f = offset_face(face0, d)
+    except Exception: return []
+    if face_area(f) < 1e-6: return []
+    return subshapes(f, TopAbs_WIRE)
+
+def z_levels(top, bottom, step):
+    if top <= bottom + 1e-9: return [bottom]
+    n = max(1, int(math.ceil((top - bottom)/max(step, 1e-3) - 1e-9)))
+    return [top - (top - bottom)*(k + 1)/n for k in range(n)]
+
+class PathBuilder:
+    def __init__(s, safe): s.moves, s.safe, s.cur = [], safe, None
+    def rapid(s, p): s.moves.append(("rapid", tuple(map(float, p)))); s.cur = p
+    def cut(s, p, f): s.moves.append(("cut", tuple(map(float, p)), f)); s.cur = p
+    def loop(s, pts, z, feed, plunge):
+        x0, y0 = pts[0][0], pts[0][1]
+        s.rapid((x0, y0, s.safe)); s.cut((x0, y0, z), plunge)
+        for x, y, _ in pts[1:]: s.cut((x, y, z), feed)
+        s.rapid((pts[-1][0], pts[-1][1], s.safe))
+
+def path_stats(moves, rapid_feed=5000.0):
+    """(cut length, rapid length, estimated minutes)."""
+    cl = rl = mins = 0.0; prev = None
+    for m in moves:
+        p = np.array(m[1])
+        if prev is not None:
+            L = float(np.linalg.norm(p - prev))
+            if m[0] == "rapid": rl += L; mins += L/rapid_feed
+            else: cl += L; mins += L/max(m[2], 1e-6)
+        prev = p
+    return cl, rl, mins
+
+class CamMixin:
+    def cam_init(s):
+        s.cam = new_cam(); s.cam_paths = {}; s.cam_sim = None; s.show_paths = True
+
+    def cam_stock(s):
+        """(lo, hi) of the stock box around the visible solid bodies."""
+        bs = [b for b in s.bodies if b.visible and not getattr(b, "mesh", False)]
+        if not bs: raise RuntimeError("there's nothing to machine")
+        lo, hi = exact_bbox(compound([b.shape for b in bs])); st_ = s.cam["setup"]
+        return lo - V(st_["side"], st_["side"], st_["bottom"]), hi + V(st_["side"], st_["side"], st_["top"]), lo, hi
+
+    def cam_wcs(s):
+        lo, hi, _, _ = s.cam_stock(); o = s.cam["setup"]["origin"]
+        return V(lo.x, lo.y, hi.z) if o == "corner" else V((lo.x + hi.x)/2, (lo.y + hi.y)/2, hi.z)
+
+    def cam_tool(s, n):
+        t = next((x for x in s.cam["tools"] if x["n"] == int(n)), None)
+        if t is None: raise RuntimeError(f"there's no tool T{n} in the tool library")
+        return t
+
+    def cam_generate(s, op):
+        """Toolpath moves (world coordinates) for one machining operation."""
+        t = op["t"]; tool = s.cam_tool(op.get("tool", 1)); R = tool["dia"]/2
+        slo, shi, mlo, mhi = s.cam_stock(); safe = shi.z + s.cam["setup"]["safe"]; pb = PathBuilder(safe)
+        step = op.get("stepdown") or tool["stepdown"]; feed, plunge = tool["feed"], tool["plunge"]
+        if t == "cam_face":
+            if shi.z - mhi.z < 1e-6: return pb.moves
+            so = tool["dia"]*op.get("stepover", 60.0)/100.0; x0, x1 = slo.x - R, shi.x + R
+            for z in z_levels(shi.z, mhi.z, step):
+                y = slo.y + R*0.5; rev = False; pb.rapid((x0, y, safe)); pb.cut((x0, y, z), plunge)
+                while True:
+                    xa, xb = (x1, x0) if rev else (x0, x1); pb.cut((xb, y, z), feed)
+                    if y >= shi.y - R*0.5 - 1e-9: break
+                    y = min(y + so, shi.y - R*0.5); pb.cut((xb, y, z), feed); rev = not rev
+                pb.rapid((pb.cur[0], pb.cur[1], safe))
+            return pb.moves
+        if t == "cam_contour":
+            loops = []
+            for r in op["geo"]:
+                if r[0] == "face":
+                    f0, fz = flat_face_xy(s.bodies[r[1]].faces[r[2]]); loops.append((f0, fz))
+                elif r[0] == "edge":
+                    e = s.bodies[r[1]].eds[r[2]]; ws = edges_to_wires([e])
+                    for w in ws:
+                        try: f0 = BRepBuilderAPI_MakeFace(w, True).Face(); c_ = centroid(f0); loops.append((to_face(transformed(f0, [[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, -c_.z]])), c_.z))
+                        except Exception: raise RuntimeError("contour edges must form a closed loop")
+            if not loops: raise RuntimeError("pick a flat face (its outline is cut) or a closed edge loop")
+            side = op.get("side", "outside"); d = R if side == "outside" else -R if side == "inside" else 0.0
+            bottom = (mlo.z if op.get("to", "model") == "model" else min(z for _, z in loops)) - op.get("extra", 0.0)
+            top = shi.z
+            for f0, fz in loops:
+                from OCP.BRepTools import BRepTools as _BT
+                outer = st(_BT, "OuterWire")(f0)
+                base = BRepBuilderAPI_MakeFace(outer, True).Face()
+                ws = offset_loops(base, d) if abs(d) > 1e-9 else [outer]
+                if not ws: raise RuntimeError("the tool is too big for that contour")
+                for z in z_levels(top, bottom, step):
+                    for w in ws: pb.loop(wire_xy_pts(w, z), z, feed, plunge)
+            return pb.moves
+        if t == "cam_pocket":
+            so = tool["dia"]*op.get("stepover", 50.0)/100.0
+            for r in op["faces"]:
+                f0, fz = flat_face_xy(s.bodies[r[1]].faces[r[2]])
+                rings = []; d = -R
+                while len(rings) < 500:
+                    ws = offset_loops(f0, d)
+                    if not ws: break
+                    rings.append(ws); d -= so
+                if not rings: raise RuntimeError("the tool doesn't fit in that pocket")
+                top = mhi.z if fz < mhi.z - 1e-6 else shi.z
+                for z in z_levels(top, fz, step):
+                    for ws in reversed(rings):                         # inside out
+                        for w in ws: pb.loop(wire_xy_pts(w, z), z, feed, plunge)
+            return pb.moves
+        if t == "cam_drill":
+            pts = []
+            for r in op["holes"]:
+                if r[0] == "face":
+                    cyl = s.bodies[r[1]].face_cylinder(r[2])
+                    if not cyl: raise RuntimeError("pick the round walls of holes")
+                    o_, a_, xd, Rh, v0, v1, ext = cyl
+                    if abs(abs(a_.z) - 1) > 1e-6: raise RuntimeError("only vertical holes can be drilled")
+                    zs = [(o_ + a_*v0).z, (o_ + a_*v1).z]; pts.append((o_.x, o_.y, min(zs), max(zs)))
+                elif r[0] == "edge":
+                    c = BRepAdaptor_Curve(s.bodies[r[1]].eds[r[2]])
+                    if c.GetType() != GeomAbs_Circle: raise RuntimeError("pick circular hole edges")
+                    p = vec(c.Circle().Location()); pts.append((p.x, p.y, mlo.z if op.get("through", True) else p.z - op.get("depth", 5.0), p.z))
+            seen = set(); peck = op.get("peck", 0.0); out = []
+            for x, y, zb, zt in pts:
+                key = (round(x, 4), round(y, 4))
+                if key in seen: continue
+                seen.add(key); out.append((x, y, zb - op.get("extra", 0.0) - (tool["dia"]*0.3 if op.get("tip", True) else 0.0), zt))
+            out.sort(key=lambda q: (round(q[1], 3), q[0]))
+            for x, y, zb, zt in out:
+                pb.rapid((x, y, safe)); pb.rapid((x, y, zt + s.cam["setup"]["retract"]))
+                if peck > 0:
+                    z = zt
+                    while z > zb + 1e-9:
+                        z = max(zb, z - peck); pb.cut((x, y, z), plunge); pb.rapid((x, y, zt + s.cam["setup"]["retract"]))
+                else: pb.cut((x, y, zb), plunge); pb.rapid((x, y, zt + s.cam["setup"]["retract"]))
+                pb.rapid((x, y, safe))
+            return pb.moves
+        raise RuntimeError(f"unknown machining operation {t}")
+
+    def cam_regen(s, idx=None):
+        """Recompute toolpaths. Returns {op index: error} for operations that failed."""
+        errs = {}
+        for i, op in enumerate(s.cam["ops"]):
+            if idx is not None and i != idx: continue
+            try: s.cam_paths[i] = s.cam_generate(op)
+            except Exception as ex: s.cam_paths[i] = []; errs[i] = str(ex)
+        return errs
+
+    def draw_cam(s):
+        if not getattr(s, "show_paths", True) or not s.cam["ops"] or s.skedit: return
+        glDisable(GL_LIGHTING); glLineWidth(1.2)
+        try:
+            slo, shi, _, _ = s.cam_stock(); glColor4f(0.9, 0.55, 0.1, 0.8); glEnable(GL_LINE_STIPPLE); glLineStipple(2, 0x0F0F)
+            xs, ys, zs = (slo.x, shi.x), (slo.y, shi.y), (slo.z, shi.z)
+            glBegin(GL_LINES)
+            for a in range(2):
+                for b in range(2):
+                    glVertex3f(xs[0], ys[a], zs[b]); glVertex3f(xs[1], ys[a], zs[b]); glVertex3f(xs[a], ys[0], zs[b]); glVertex3f(xs[a], ys[1], zs[b])
+                    glVertex3f(xs[a], ys[b], zs[0]); glVertex3f(xs[a], ys[b], zs[1])
+            glEnd(); glDisable(GL_LINE_STIPPLE)
+            w = s.cam_wcs(); L = s.span()*0.06
+            glLineWidth(2.5); glBegin(GL_LINES)
+            for d, c in ((V(1, 0, 0), (0.9, 0.2, 0.2)), (V(0, 1, 0), (0.2, 0.7, 0.2)), (V(0, 0, 1), (0.2, 0.4, 0.9))):
+                glColor3f(*c); glVertex3f(*w.t()); glVertex3f(*(w + d*L).t())
+            glEnd()
+        except Exception: pass
+        glLineWidth(1.2)
+        for i, moves in s.cam_paths.items():
+            if i >= len(s.cam["ops"]) or not s.cam["ops"][i].get("visible", True): continue
+            prev = None; glBegin(GL_LINES)
+            for m in moves:
+                if prev is not None:
+                    if m[0] == "rapid": glColor4f(0.85, 0.15, 0.15, 0.55)
+                    else: glColor4f(0.05, 0.35, 0.85, 0.95)
+                    glVertex3f(*prev); glVertex3f(*m[1])
+                prev = m[1]
+            glEnd()
+        if s.cam_sim:                                               # tool marker for the simulation
+            p, R = s.cam_sim["p"], s.cam_sim["r"]; glColor4f(0.95, 0.75, 0.2, 0.9); glBegin(GL_LINES)
+            for k in range(16):
+                a, b = 2*math.pi*k/16, 2*math.pi*(k + 1)/16
+                for z in (p[2], p[2] + R*6):
+                    glVertex3f(p[0] + R*math.cos(a), p[1] + R*math.sin(a), z); glVertex3f(p[0] + R*math.cos(b), p[1] + R*math.sin(b), z)
+                glVertex3f(p[0] + R*math.cos(a), p[1] + R*math.sin(a), p[2]); glVertex3f(p[0] + R*math.cos(a), p[1] + R*math.sin(a), p[2] + R*6)
+            glEnd()
+        glEnable(GL_LIGHTING)
+
+def post_gcode(cam, paths, wcs, flavor="grbl", name="fission"):
+    """G-code for every visible operation, in order. flavor: "grbl" (no tool changes / canned cycles) or "generic"."""
+    f3 = lambda v: f"{v:.3f}".rstrip("0").rstrip(".") if abs(v) > 1e-9 else "0"
+    L = [f"({name} - Fission CAM)", "G21 G90 G94 G17" + (" G40 G49 G80" if flavor == "generic" else "")]
+    cur_tool = None; ox, oy, oz = wcs.t()
+    for i, op in enumerate(cam["ops"]):
+        moves = paths.get(i) or []
+        if not moves: continue
+        tool = next((x for x in cam["tools"] if x["n"] == int(op.get("tool", 1))), None)
+        L.append(f"({op.get('name') or op['t']} - T{tool['n']} {tool['name']})")
+        if tool["n"] != cur_tool:
+            if flavor == "generic": L += ["M5", f"T{tool['n']} M6", f"G43 H{tool['n']}"]
+            else:
+                L.append(f"(tool change: T{tool['n']} {tool['name']})")
+                if cur_tool is not None: L += ["M5", "M0 (change tool, then resume)"]
+            cur_tool = tool["n"]
+        L.append(f"S{int(tool['rpm'])} M3")
+        lastf = None; lastp = None
+        for m in moves:
+            x, y, z = m[1][0] - ox, m[1][1] - oy, m[1][2] - oz
+            if lastp is not None and max(abs(x - lastp[0]), abs(y - lastp[1]), abs(z - lastp[2])) < 1e-6: continue
+            if m[0] == "rapid": L.append(f"G0 X{f3(x)} Y{f3(y)} Z{f3(z)}")
+            else:
+                fs = "" if m[2] == lastf else f" F{f3(m[2])}"; lastf = m[2]; L.append(f"G1 X{f3(x)} Y{f3(y)} Z{f3(z)}{fs}")
+            lastp = (x, y, z)
+    L += ["M5", "G0 Z" + f3(cam["setup"]["safe"] + 0.0), "M30" if flavor == "generic" else "M2", ""]
+    return "\n".join(L)
+
+class Viewport(CamMixin, RenderMixin, PlasticMixin, SheetMixin, AssemblyMixin, InspectMixin, SketchMixin, SolidMixin, QOpenGLWidget):
     changed = C.Signal()
     sk_mode = C.Signal(bool)
     dim_place = C.Signal(object)
@@ -6802,19 +9895,20 @@ class Viewport(SketchMixin, SolidMixin, QOpenGLWidget):
         s.states.append(s.snapshot("start"))
         s._anim, s._timer = None, C.QTimer(s); s._timer.timeout.connect(s._tick)
         s.setMouseTracking(True); s.setFocusPolicy(C.Qt.StrongFocus); s.cube_key = None; s.labels = []
-        s.overlay = LabelOverlay(s); s.cube = ViewCube(s)
+        s.overlay = LabelOverlay(s); s.cube = ViewCube(s); s.insp_init(); s.asm_init()
 
     # ---- undo / redo history ----
     def snapshot(s, kind, op=None):
         sks = [k for k in s.sketches if not (k.pending and not k.entities)]     # an untouched face-click sketch isn't history
         return dict(kind=kind, op=op, bodies=list(s.bodies), sk=[k.snap() for k in sks], cons=list(s.cons),
-                    act=sks.index(s.active) if s.active in sks else None, feats=list(s.features), canv=list(s.canv))
+                    act=sks.index(s.active) if s.active in sks else None, feats=list(s.features), canv=list(s.canv), asm=s.asm_state())
     def checkpoint(s, kind, op=None):
         del s.states[s.pos + 1:]; s.states.append(s.snapshot(kind, op)); s.pos = len(s.states) - 1; s.changed.emit()
 
     # ---- parametric operations: every timeline step is a re-runnable recipe, so old steps can be edited ----
     def do(s, op):
         """Run an operation on the model and record it as a timeline step."""
+        if getattr(s, "active_comp", None) and "in_comp" not in op and op.get("t") not in ASM_OPS: op["in_comp"] = s.active_comp
         s.exec_op(op); s.checkpoint(op.get("icon", op["t"]), op)
 
     def chosen_regions(s, sk, sel):
@@ -6830,6 +9924,12 @@ class Viewport(SketchMixin, SolidMixin, QOpenGLWidget):
         return fuse_all([revolve(r.face, pl.w(o), ax, angle) for r in s.chosen_regions(sk, sel)])
 
     def exec_op(s, op):
+        if op.get("suppressed"): return
+        if op.get("_x"): op = s.eval_op_exprs(op)
+        before = [getattr(b, "comp", None) for b in s.bodies]
+        s.exec_op_core(op)
+        if s.comps: s.after_op_comps(op, before)
+    def exec_op_core(s, op):
         t = op["t"]
         if s.exec_sketch_op(op): return
         if s.exec_solid(op): return
@@ -6858,7 +9958,7 @@ class Viewport(SketchMixin, SolidMixin, QOpenGLWidget):
             sk.visible, s.active = False, None
         elif t == "move":
             b = s.bodies[op["bi"]]
-            nb = Body(transformed(b.shape, move_matrix((b.lo + b.hi)*0.5, V(*op["d"]), op["rot"]))).copy_look(b)
+            nb = xform_body(b, move_matrix((b.lo + b.hi)*0.5, V(*op["d"]), op["rot"]))
             if op["copy"]: s.bodies.append(nb)
             else: s.bodies[op["bi"]] = nb
         elif t in ("fillet", "chamfer"):
@@ -6910,47 +10010,117 @@ class Viewport(SketchMixin, SolidMixin, QOpenGLWidget):
         else:
             raise RuntimeError(f"unknown step type {t}")
 
-    def replay_edit(s, i, new_op):
-        """Give step i new parameters and recompute every step after it (also the undone ones)."""
+    # ---------------- timeline rebuilds (0.7): keep going past failing steps ----------------
+    def rebuild_steps(s, i, ops, kinds, strict=None):
+        """Re-run ops[i:] on top of state i-1. A step that fails keeps its place (marked with its error) and leaves the
+        model as it was; later steps still run. strict = a step index whose failure aborts (raises) instead."""
+        old = s.states; s.restore(i - 1); new = old[:i]; fails = []
+        for j in range(i, len(ops)):
+            op = ops[j]
+            try:
+                s.exec_op(op); stt = s.snapshot(kinds[j], op)
+                if fails and not (op or {}).get("suppressed") and not (op or {}).get("quiet"): stt["warn"] = f"after the failed step {fails[0][0]}"
+            except Exception as ex:
+                if j == strict: s.states = old; raise
+                s.states = new; s.restore(len(new) - 1); s.states = old
+                stt = s.snapshot(kinds[j], op); stt["err"] = str(ex) or type(ex).__name__; fails.append((j, kinds[j], ex))
+            new.append(stt)
+        s.last_fails = fails
+        return new, fails
+
+    def replay_edit(s, i, new_op, strict=True):
+        """Give step i new parameters and recompute every step after it (also the undone ones).
+        The edited step must work (else nothing changes); later steps that break are kept and flagged."""
         old_states, old_pos = s.states, s.pos
         ops = [stt["op"] for stt in old_states]; ops[i] = new_op
         bad = next((j for j in range(i, len(ops)) if ops[j] is None), None)
         if bad is not None: raise RuntimeError(f"step {bad} can't be recomputed")
-        s.restore(i - 1); new_states = old_states[:i]; j = i
-        try:
-            for j in range(i, len(ops)):
-                s.exec_op(ops[j]); new_states.append(s.snapshot(old_states[j]["kind"], ops[j]))
+        try: new_states, fails = s.rebuild_steps(i, ops, [x["kind"] for x in old_states], i if strict else None)
         except Exception as ex:
             traceback.print_exc(); s.states = old_states; s.restore(old_pos)
-            raise RuntimeError(f"Step {j} ({old_states[j]['kind']}) could not be rebuilt with the new value:\n{ex}\n\nNothing was changed.")
-        s.states = new_states; s.restore(old_pos)
+            raise RuntimeError(f"Step {i} ({old_states[i]['kind']}) could not be rebuilt with the new value:\n{ex}\n\nNothing was changed.")
+        s.states = new_states; s.restore(old_pos); return fails
+
+    def replay_ops(s, i, ops, kinds, pos, remap=None):
+        """Replace the history from step i on with new ops (reorder / remove / suppress), keeping failures flagged."""
+        if any(o is None for o in ops[i:]): raise RuntimeError("a later step can't be recomputed")
+        old_states = s.states
+        try: new_states, fails = s.rebuild_steps(i, ops, kinds)
+        except Exception: s.states = old_states; raise
+        s.states = new_states
+        if remap: s.tl_remap(remap)
+        s.restore(max(0, min(pos, len(new_states) - 1))); return fails
 
     def replay_remove(s, i):
         """Delete step i and recompute every later step."""
-        old_states, old_pos = s.states, s.pos
-        tail = list(range(i + 1, len(old_states)))
-        if any(old_states[j]["op"] is None for j in tail): raise RuntimeError("a later step can't be recomputed")
-        s.restore(i - 1); new_states = old_states[:i]; j = i
-        try:
-            for j in tail: s.exec_op(old_states[j]["op"]); new_states.append(s.snapshot(old_states[j]["kind"], old_states[j]["op"]))
-        except Exception as ex:
-            traceback.print_exc(); s.states = old_states; s.restore(old_pos)
-            raise RuntimeError(f"Step {j} ({old_states[j]['kind']}) depends on the deleted step:\n{ex}\n\nNothing was changed.")
-        s.states = new_states; s.restore(min(old_pos if old_pos < i else old_pos - 1, len(new_states) - 1))
+        ops = [x["op"] for x in s.states]; kinds = [x["kind"] for x in s.states]; pos = s.pos
+        del ops[i]; del kinds[i]
+        return s.replay_ops(i, ops, kinds, pos if pos < i else pos - 1, {j: (j if j < i else None if j == i else j - 1) for j in range(len(s.states))})
+
+    def move_step(s, i, k):
+        """Move step i so it becomes step k; everything from the earlier of the two is recomputed."""
+        n = len(s.states)
+        if not (1 <= i < n and 1 <= k < n) or i == k: return []
+        ops = [x["op"] for x in s.states]; kinds = [x["kind"] for x in s.states]
+        order = list(range(n)); order.insert(k, order.pop(i))
+        remap = {old: new for new, old in enumerate(order)}
+        pos = n - 1 if s.pos == n - 1 else remap.get(s.pos, s.pos)
+        return s.replay_ops(min(i, k), [ops[j] for j in order], [kinds[j] for j in order], pos, remap)
+
+    def set_suppressed(s, i, on):
+        op = dict(s.states[i]["op"]); op["suppressed"] = bool(on)
+        if not on: op.pop("suppressed")
+        ops = [x["op"] for x in s.states]; ops[i] = op
+        return s.replay_ops(i, ops, [x["kind"] for x in s.states], s.pos)
+
+    def rename_step(s, i, name):
+        op = dict(s.states[i]["op"])
+        if name: op["label"] = name
+        else: op.pop("label", None)
+        s.states[i] = dict(s.states[i], op=op); s.tl_ver = getattr(s, "tl_ver", 0) + 1; s.changed.emit()
+
+    def load_steps(s, steps, pos):
+        """Rebuild a saved design by re-running its steps. Returns the failed steps [(step, kind, error)] (empty if none);
+        failed steps stay in the timeline, flagged, and the steps after them still run."""
+        s.reset()
+        ops = [None] + [stp["op"] for stp in steps]; kinds = ["start"] + [stp["kind"] for stp in steps]
+        new, fails = s.rebuild_steps(1, ops, kinds) if steps else ([s.states[0]], [])
+        s.states = new; s.restore(min(pos, len(s.states) - 1)); return fails
+
+    # ---- folders (groups of neighbouring steps) ----
+    def tl_remap(s, m):
+        out = []
+        for g in getattr(s, "tl_groups", []):
+            idx = [m.get(j) for j in range(g["a"], g["b"] + 1)]; idx = [j for j in idx if j is not None]
+            if len(idx) >= 1: out.append(dict(g, a=min(idx), b=max(idx)))
+        s.tl_groups = out
+
+    def tl_clean_groups(s):
+        n = len(s.states); out = []
+        for g in getattr(s, "tl_groups", []):
+            b = min(g["b"], n - 1)
+            if 1 <= g["a"] <= b: out.append(dict(g, b=b))
+        s.tl_groups = out; return out
+
+    def group_of(s, i):
+        return next((g for g in getattr(s, "tl_groups", []) if g["a"] <= i <= g["b"]), None)
+
+    def eval_op_exprs(s, op):
+        """Feature values typed as expressions (parameter names, other dimensions) are re-evaluated on every rebuild."""
+        op = dict(op); env = s.dim_env()
+        for k, (text, kind) in op["_x"].items():
+            try: val = eval_expr(text, env, kind)
+            except ExprError as ex: raise RuntimeError(f"{k} = {text}: {ex}")
+            if k in op: op[k] = val
+            elif isinstance(op.get("vals"), dict) and k in op["vals"]: op["vals"] = dict(op["vals"]); op["vals"][k] = val
+        return op
 
     def reset(s):
         if s.skedit: s.skedit = None; s.tool = None; s.sk_mode.emit(False)
         s.bodies, s.sketches, s.features, s.active, s.cons, s.canv = [], [], [], None, [], []
+        s.asm_init()
         s.ext = s.rev = s.mv = None; s.tool, s.pts = None, []
-        s.states, s.pos = [], 0; s.states.append(s.snapshot("start")); s.restore(0)
-    def load_steps(s, steps, pos):
-        """Rebuild a saved design by re-running its steps. Returns (step, kind, error) for a step that failed, else None."""
-        s.reset(); fail = None
-        for i, stp in enumerate(steps, 1):
-            try: s.exec_op(stp["op"]); s.states.append(s.snapshot(stp["kind"], stp["op"]))
-            except Exception as ex: traceback.print_exc(); fail = (i, stp["kind"], ex); break
-        s.restore(min(pos, len(s.states) - 1)); return fail
-
+        s.states, s.pos = [], 0; s.states.append(s.snapshot("start")); s.insp_reset(); s.restore(0)
     def drop_pending(s):
         """Forget a face-click sketch nothing was drawn on."""
         for k in [k for k in s.sketches if k.pending and not k.entities]:
@@ -6959,6 +10129,7 @@ class Viewport(SketchMixin, SolidMixin, QOpenGLWidget):
     def restore(s, i):
         i = max(0, min(len(s.states) - 1, i)); stt = s.states[i]; s.pos = i
         s.bodies, s.features, s.cons, s.canv = list(stt["bodies"]), list(stt["feats"]), list(stt.get("cons", [])), list(stt.get("canv", []))
+        s.asm_apply(stt.get("asm", {}))
         s.preview = s.handle = s.cmd_hover = None
         s.sketches = [Sketch.restore(t) for t in stt["sk"]]
         s.active = s.sketches[stt["act"]] if stt["act"] is not None else None
@@ -7006,7 +10177,9 @@ class Viewport(SketchMixin, SolidMixin, QOpenGLWidget):
             a, b = V(*np.min(lo, 0)), V(*np.max(hi, 0))
             s.target = (a + b)*0.5; s.dist = max(10.0, (b - a).Length*0.5/math.sin(math.radians(22.5))*1.15)
         s.update()
-    def home(s): s.target = V(); s.fit(); s.animate_to(-0.8, 0.5)
+    def home(s):
+        if s.home_cam: s.go_cam(s.home_cam); return
+        s.target = V(); s.fit(); s.animate_to(-0.8, 0.5)
 
     def grid_levels(s):
         """Grid squares come in powers of 5 of the base unit (1 mm or 1 inch): each square is split into 5 smaller ones."""
@@ -7036,7 +10209,7 @@ class Viewport(SketchMixin, SolidMixin, QOpenGLWidget):
         glEnable(GL_DEPTH_TEST); glDepthFunc(GL_LEQUAL); glDepthMask(GL_TRUE)
         vp = glGetIntegerv(GL_VIEWPORT)
         glMatrixMode(GL_PROJECTION); glLoadIdentity()
-        gluPerspective(45, vp[2]/max(vp[3], 1), s.dist/50, s.dist*2000)
+        s.apply_projection(vp)
         glMatrixMode(GL_MODELVIEW); glLoadIdentity()
         glLightModeli(GL_LIGHT_MODEL_TWO_SIDE, 1); glEnable(GL_COLOR_MATERIAL); glEnable(GL_NORMALIZE)
         e, t = s.eye(), s.target
@@ -7060,9 +10233,7 @@ class Viewport(SketchMixin, SolidMixin, QOpenGLWidget):
             pl = s.esk.plane; sg = 1 if s.eye().dot(pl.n) - pl.o.dot(pl.n) >= 0 else -1
             glClipPlane(GL_CLIP_PLANE0, (-sg*pl.n.x, -sg*pl.n.y, -sg*pl.n.z, sg*pl.n.dot(pl.o) + 1e-6*s.dist)); glEnable(GL_CLIP_PLANE0)
         glEnable(GL_LIGHTING); glEnable(GL_LIGHT0); glEnable(GL_LIGHT1); glEnable(GL_POLYGON_OFFSET_FILL); glPolygonOffset(1, 1)
-        for i, b in enumerate(shown):
-            if b.visible and i != moving:
-                glColor3f(*(PREVIEW_COL if s.preview and id(b) not in olds else (b.color or BODY))); glCallList(s.lists(b)[0])
+        s.draw_body_fills(shown, moving, olds)
         glPolygonOffset(-0.5, -0.5)
         for b in shown:
             if not b.visible or not b.face_colors: continue
@@ -7078,9 +10249,7 @@ class Viewport(SketchMixin, SolidMixin, QOpenGLWidget):
         glDisable(GL_POLYGON_OFFSET_FILL); glDisable(GL_LIGHTING)
         s.draw_face_tints(moving)
         glEnable(GL_LINE_SMOOTH)
-        glColor3f(*EDGE); glLineWidth(1.3)
-        for i, b in enumerate(shown):
-            if b.visible and i != moving: glCallList(s.lists(b)[1])
+        s.draw_body_edges(shown, moving)
         if s.mv:
             glPushMatrix(); glMultMatrixd(s.move_gl()); glCallList(s.lists(s.bodies[s.mv["bi"]])[1]); glPopMatrix()
         glDisable(GL_CLIP_PLANE0)
@@ -7109,6 +10278,7 @@ class Viewport(SketchMixin, SolidMixin, QOpenGLWidget):
                     for A in geo_polys(g, ci): s.sk_glline(A)
                 glPopMatrix()
             glDisable(GL_LINE_STIPPLE); glEnable(GL_DEPTH_TEST)
+        s.draw_inspect_3d(); s.draw_joints(); s.draw_bend_lines(); s.draw_cam()
         s.draw_cmd_overlay()
         if s.mv: s.draw_triad()
 
@@ -7456,6 +10626,7 @@ class Viewport(SketchMixin, SolidMixin, QOpenGLWidget):
 
     # ---- booleans ----
     def overlaps(s, bi, tool):
+        if getattr(s.bodies[bi], "mesh", False): return False
         try: return abs(volume(boolean(s.bodies[bi].shape, tool, "common"))) > 1e-6
         except Exception: return False
     def replace_body(s, bi, shape):
@@ -7493,7 +10664,7 @@ class Viewport(SketchMixin, SolidMixin, QOpenGLWidget):
         if s.mvp is None: return None
         o, d = s.ray(p); O, D = np.array(o.t()), np.array(d.t()); best, bt = None, np.inf
         for bi, b in enumerate(s.bodies):
-            if not b.visible or not len(b.tv): continue
+            if not b.visible or not len(b.tv) or not getattr(b, "selectable", True): continue
             t = ray_hits(O, D, b.tv[:, 0], b.tv[:, 1], b.tv[:, 2]); i = int(np.argmin(t))
             if t[i] < bt: best, bt = (bi, int(b.tri_face[i]), i, float(t[i])), t[i]
         return best
@@ -7503,7 +10674,7 @@ class Viewport(SketchMixin, SolidMixin, QOpenGLWidget):
         if s._edge_cache and s._edge_cache[0] == key: return s._edge_cache[1]
         data = []
         for bi, b in enumerate(s.bodies):
-            if not b.visible or not len(b.sa): continue
+            if not b.visible or not len(b.sa) or not getattr(b, "selectable", True) or getattr(b, "mesh", False): continue
             A, oka = s.project(b.sa); B, okb = s.project(b.sb)
             data.append((bi, b, A, B, oka & okb))
         s._edge_cache = (key, data); return data
@@ -7584,14 +10755,14 @@ class Viewport(SketchMixin, SolidMixin, QOpenGLWidget):
 
     def click_select(s, p):
         """Click with no tool: edge > sketch region > face; empty space clears the selection."""
-        e = s.edge_near(p)
+        e = s.edge_near(p) if "edges" in s.sel_filter else None
         if e:
             s.sel ^= {e}; s.sel_face = None; s.sel_body = e[0]
             if e in s.sel:
                 pl = s.bodies[e[0]].edges[e[1]]; L = float(np.linalg.norm(np.diff(pl, axis=0), axis=1).sum())
                 s.msg.emit(f"Edge selected - length {flen(L)}. Fillet (F) or Chamfer (H) the selected edges.")
             return
-        r = s.region_under(p)
+        r = s.region_under(p) if "profiles" in s.sel_filter else None
         if r:
             sk, i = r
             if sk is not s.active: s.active, sk.sel = sk, set()
@@ -7602,6 +10773,9 @@ class Viewport(SketchMixin, SolidMixin, QOpenGLWidget):
         s.drop_pending()
         if hit:
             s.sel_face, s.sel_body = hit[:2], hit[0]
+            if getattr(s.bodies[hit[0]], "mesh", False):
+                s.sel_face = None; s.msg.emit(f"Mesh body selected ({len(s.bodies[hit[0]].tv):,} triangles) - the MESH tab has tools for it, M moves it.")
+                return
             cyl = s.bodies[hit[0]].face_cylinder(hit[1])
             s.msg.emit("Cylindrical face selected - press T to add a thread, F to fillet its edges, M to move the body." if cyl else
                        "Face selected - double-click it (or press S) to sketch on it, M to move the body, F to fillet its edges.")
@@ -7620,6 +10794,7 @@ class Viewport(SketchMixin, SolidMixin, QOpenGLWidget):
     def mousePressEvent(s, e):
         s.last, s.moved = e.position(), False
         if s.calib: return
+        if s.insp_press(e): return
         if s.skedit and not s.cmd and e.button() == C.Qt.LeftButton and not s.nav: s.sk_press(e); return
         if s.cmd:
             if e.button() == C.Qt.LeftButton and s.handle_hit(e.position()):
@@ -7644,6 +10819,7 @@ class Viewport(SketchMixin, SolidMixin, QOpenGLWidget):
     def mouseMoveEvent(s, e):
         p = e.position(); dx, dy = p.x() - s.last.x(), p.y() - s.last.y(); b = e.buttons()
         if abs(dx) + abs(dy) > 2: s.moved = True
+        if s.insp_move(e): s.last = p; return
         if s.skedit and not s.cmd and not s.nav and s.sk_mouse_move(e): s.last = p; return
         if s.cmd and s.handle and s.handle.get("drag") and b & C.Qt.LeftButton:
             h = s.handle; o, d = s.ray(p); t = line_param(o, d, h["o"], h["d"])
@@ -7675,9 +10851,10 @@ class Viewport(SketchMixin, SolidMixin, QOpenGLWidget):
                 s.mv["rot"][i] = s.mv["rot0"] + deg; s.move_moved.emit()
             s.last = p; s.update(); return
         nl = bool(b & C.Qt.LeftButton and s.nav)
-        if b & C.Qt.RightButton or (b & C.Qt.MiddleButton and e.modifiers() & C.Qt.ShiftModifier) or (nl and s.nav == "orbit"):
+        nk = s.nav_kind(b, e.modifiers())
+        if nk == "orbit" or (nl and s.nav == "orbit"):
             s._anim = None; s.yaw -= dx*0.01; s.pitch = max(-1.55, min(1.55, s.pitch + dy*0.01))
-        elif b & C.Qt.MiddleButton or (nl and s.nav == "pan"):
+        elif nk == "pan" or (nl and s.nav == "pan"):
             k = s.dist*0.0015
             r = V(-math.sin(s.yaw), math.cos(s.yaw), 0)
             u = V(-math.sin(s.pitch)*math.cos(s.yaw), -math.sin(s.pitch)*math.sin(s.yaw), math.cos(s.pitch))
@@ -7734,6 +10911,7 @@ class Viewport(SketchMixin, SolidMixin, QOpenGLWidget):
         hit = s.pick_face(p); s.hover = hit[:2] if hit else None
 
     def mouseReleaseEvent(s, e):
+        if s.insp_release(e): return
         if s.calib and e.button() == C.Qt.LeftButton and not s.moved:
             g = s.ground(e.position(), False, s.calib["plane"])
             if g is not None:
@@ -7824,13 +11002,14 @@ class Viewport(SketchMixin, SolidMixin, QOpenGLWidget):
         if hit and s.sketch_on_face(hit): s.changed.emit(); s.update()
 
     def wheelEvent(s, e):
-        s.dist = max(0.5, s.dist*(0.9 if e.angleDelta().y() > 0 else 1.1)); s.update()
+        up = (e.angleDelta().y() > 0) != bool(s.zoom_invert); s.dist = max(0.5, s.dist*(0.9 if up else 1.1)); s.update()
 
     def focusNextPrevChild(s, nxt): return False          # let Tab reach keyPressEvent
 
     def keyPressEvent(s, e):
         ret = e.key() in (C.Qt.Key_Return, C.Qt.Key_Enter)
         if s.calib and e.key() == C.Qt.Key_Escape: info = s.calib; s.calib = None; s.restore(info["back"]); return
+        if s.meas is not None and e.key() in (C.Qt.Key_Escape, C.Qt.Key_Return, C.Qt.Key_Enter): s.window().measure_stop(); return
         if s.skedit and not s.cmd:
             if s.sk_key(e): return
         if s.cmd:
@@ -7848,7 +11027,7 @@ class Viewport(SketchMixin, SolidMixin, QOpenGLWidget):
         elif ret and s.tool == "poly" and len(s.pts) == 2: s.commit("line", s.pts)      # open line, e.g. a revolve axis
         if ret or e.key() == C.Qt.Key_Escape:
             s.pts, s.tool, s.hover, s.hover_plane = [], None, None, None
-            if e.key() == C.Qt.Key_Escape and not ret: s.sel.clear(); s.sel_face = s.sel_body = None
+            if e.key() == C.Qt.Key_Escape and not ret: s.sel.clear(); s.sel_face = s.sel_body = None; s.msel = set()
         s.changed.emit(); s.update()
 
     # ---- on-screen dimensions (click one to type an exact value) ----
@@ -7978,9 +11157,10 @@ class LabelOverlay(W.QWidget):
         super().__init__(vp); s.vp = vp
         s.setAttribute(C.Qt.WA_TransparentForMouseEvents); s.setAttribute(C.Qt.WA_TranslucentBackground)
     def paintEvent(s, _):
-        if not s.vp.labels and not s.vp.glyphs and s.vp.sk_box is None and not (s.vp.skedit and (s.vp.sk_hint or s.vp.sk_cursor)) and s.vp.type_buf is None: return
+        if not s.vp.labels and not s.vp.glyphs and s.vp.sk_box is None and not (s.vp.skedit and (s.vp.sk_hint or s.vp.sk_cursor)) and s.vp.type_buf is None and s.vp.box is None and s.vp.meas is None: return
         p = G.QPainter(s); p.setRenderHint(G.QPainter.Antialiasing); f = p.font(); f.setPixelSize(11); p.setFont(f)
         vp = s.vp
+        vp.draw_box(p); vp.paint_meas_label(p)
         for gl in vp.glyphs:                                               # constraint glyphs
             hot = vp.sk_hover == ("k", gl["ki"]) or ("k", gl["ki"]) in vp.sk_sel
             p.setPen(G.QPen(G.QColor(ACCENT if hot else "#8a929b"), 1.4 if hot else 1)); p.setBrush(G.QColor("#e3f2fc") if hot else G.QColor(255, 255, 255, 235))
@@ -8182,7 +11362,7 @@ def make_sheet(views, o):
         P.append(("txt", x + 1.5, y + 7.6, 1.8, label, "l", False)); P.append(("txt", x + 1.5, y + 2.2, size, value, "l", True))
     P.append(("txt", tx0 + 1.5, ty1 - 3.5, 1.8, "TITLE", "l", False))
     P.append(("txt", tx0 + 1.5, r2 + 3.2, 6, o["title"] or "Untitled", "l", True))
-    P.append(("txt", tx1 - 1.5, r2 + 3.2, 2.2, "Fission 0.6", "r", False))
+    P.append(("txt", tx1 - 1.5, r2 + 3.2, 2.2, "Fission 0.7", "r", False))
     cell(tx0, r1, "DRAWN BY", o["author"] or "-"); cell(tx0 + cw, r1, "DATE", datetime.date.today().isoformat())
     cell(tx0 + 2*cw, r1, "SCALE", scale_text(k)); cell(tx0, ty0, "UNITS", {"mm": "mm", "in": "inch"}.get(o.get("units", "mm"), o.get("units", "mm"))); cell(tx0 + cw, ty0, "SHEET", f"{o['sheet']}  1/1")
     P.append(("txt", tx0 + 2*cw + 1.5, ty0 + 7.6, 1.8, "THIRD ANGLE" if third else "FIRST ANGLE", "l", False))
@@ -8209,6 +11389,8 @@ def render_sheet(p, sheet, k, ox=0.0, oy=0.0):
             w = STYLE_W[pr[2]]; pen = G.QPen(G.QColor("#5a5f66" if pr[2] == "smooth" else "#111"), max(w*k, 0.6))
             pen.setCapStyle(C.Qt.RoundCap); pen.setJoinStyle(C.Qt.RoundJoin)
             if pr[2] == "hid": pen.setDashPattern([2.2/w, 1.2/w])
+            elif pr[2] == "center": pen.setDashPattern([8/w, 1.5/w, 1.2/w, 1.5/w]); pen.setCapStyle(C.Qt.FlatCap)
+            elif pr[2] == "cut": pen.setDashPattern([10/w, 1.5/w, 2/w, 1.5/w]); pen.setCapStyle(C.Qt.FlatCap)
             p.setPen(pen); p.setBrush(C.Qt.NoBrush); p.drawPolyline(G.QPolygonF([T(*q) for q in pr[1]]))
         elif pr[0] == "tri":
             p.setPen(C.Qt.NoPen); p.setBrush(G.QColor("#111")); p.drawPolygon(G.QPolygonF([T(*q) for q in pr[1]]))
@@ -8223,7 +11405,8 @@ def render_sheet(p, sheet, k, ox=0.0, oy=0.0):
 
 def write_dxf(path, sheet):
     Wd, Ht, prims = sheet; L = ["0", "SECTION", "2", "ENTITIES"]
-    layer = {"vis": "VISIBLE", "hid": "HIDDEN", "smooth": "TANGENT", "thin": "DIMENSIONS", "border": "BORDER"}
+    layer = {"vis": "VISIBLE", "hid": "HIDDEN", "smooth": "TANGENT", "thin": "DIMENSIONS", "border": "BORDER", "center": "CENTER",
+             "hatch": "HATCH", "cut": "CUTTING_PLANE"}
     for pr in prims:
         if pr[0] == "pl":
             for (x1, y1), (x2, y2) in zip(pr[1], pr[1][1:]):
@@ -8250,6 +11433,536 @@ class SheetView(W.QWidget):
         if s.last is not None: s.pan += e.position() - s.last; s.last = e.position(); s.update()
     def mouseReleaseEvent(s, e): s.last = None
     def mouseDoubleClickEvent(s, e): s.zoom, s.pan = 1.0, C.QPointF(0, 0); s.update()
+
+
+# ---------------------------------------------------------------------------------------------------------------
+#  Drawings 0.7: chosen views and scale, section and detail views, placed dimensions, centre marks, notes,
+#  an editable title block and a parts list
+# ---------------------------------------------------------------------------------------------------------------
+STYLE_W.update({"center": 0.18, "hatch": 0.13, "cut": 0.6})
+VIEW_LABEL = {"front": "FRONT", "top": "TOP", "right": "RIGHT", "left": "LEFT", "bottom": "BOTTOM", "iso": "ISOMETRIC"}
+
+def view_frame(name):
+    N, X = VIEW_DIRS[name]; n, x = V(*N).normalize(), V(*X).normalize(); return n, x, n.cross(x)
+
+def hlr_lines(shapes, N, X, poly, defl):
+    """Visible / hidden / tangent edges of shapes seen along N (toward the viewer), as 2D polylines in the (X, N×X) frame."""
+    from OCP.HLRBRep import HLRBRep_PolyAlgo, HLRBRep_PolyHLRToShape
+    comp = compound(shapes); proj = HLRAlgo_Projector(gp_Ax2(gp_Pnt(0, 0, 0), gp_Dir(*N.t()), gp_Dir(*X.t())))
+    if poly:
+        algo = HLRBRep_PolyAlgo(comp); algo.Projector(proj); algo.Update(); h = HLRBRep_PolyHLRToShape(); h.Update(algo)
+    else:
+        algo = HLRBRep_Algo(); algo.Add(comp); algo.Projector(proj); algo.Update(); algo.Hide(); h = HLRBRep_HLRToShape(algo)
+    res = dict(vis=[], hid=[], smooth=[], circles=[], hatch=[], cut=[])
+    for key, getters in (("vis", ("VCompound", "OutLineVCompound")), ("smooth", ("Rg1LineVCompound",)), ("hid", ("HCompound", "OutLineHCompound"))):
+        for g in getters:
+            try: c = getattr(h, g)()
+            except Exception: continue
+            if c is None or c.IsNull(): continue
+            for e in subshapes(c, TopAbs_EDGE, unique=False):
+                pts = edge_pts(e, defl)
+                if len(pts) > 1: res[key].append(pts[:, :2])
+    return res
+
+def finish_view(res, shapes, n, xv):
+    yv = n.cross(xv); seen = set()
+    for c, a, r in model_circles(shapes):
+        if abs(abs(a.dot(n)) - 1) > 1e-6: continue
+        key = (round(c.dot(xv), 3), round(c.dot(yv), 3), round(r, 4))
+        if key not in seen: seen.add(key); res["circles"].append(key)
+    allp = [p for k in ("vis", "hid", "smooth", "cut") for p in res[k]]
+    if allp: a_ = np.concatenate(allp); res["lo"], res["hi"] = a_.min(0), a_.max(0)
+    else: res["lo"], res["hi"] = np.zeros(2), np.zeros(2)
+    return res
+
+def project_named(shapes, name):
+    lo, hi = bbox(compound(shapes)); diag = max((hi - lo).Length, 1e-3)
+    poly = any(is_complex(sh) for sh in shapes)
+    if poly: BRepMesh_IncrementalMesh(compound(shapes), diag*0.0008, False, 0.15, True)
+    n, xv, _ = view_frame(name)
+    return finish_view(hlr_lines(shapes, n, xv, poly, diag*0.0015), shapes, n, xv)
+
+def section_frame(base, axis, flip):
+    """Cutting plane normal, section view direction (toward the viewer) and its x axis for a cut line drawn on a base view."""
+    n, xv, yv = view_frame(base)
+    if axis == "v": pn, N = xv, -xv
+    else: pn, N = yv, yv
+    if flip: N = -N
+    X = (yv.cross(N)) if axis == "v" else xv
+    return pn, N, X.normalize()
+
+def section_view(shapes, base, axis, pos, flip=False):
+    """Section through a base view along a vertical ("v") or horizontal ("h") cut line at view coordinate pos."""
+    pn, N, X = section_frame(base, axis, flip); Y = N.cross(X)
+    lo, hi = bbox(compound(shapes)); big = (hi - lo).Length*4 + 100; diag = max((hi - lo).Length, 1e-3)
+    P0 = pn*pos; kept, cuts = [], []
+    for sh in shapes:
+        try:
+            k_ = boolean(sh, prism(big_plane_face(P0, N, big), N, big), "cut")
+            if subshapes(k_, TopAbs_FACE): kept.append(k_)
+            c_ = boolean(sh, big_plane_face(P0, pn, big), "common"); cuts += subshapes(c_, TopAbs_FACE)
+        except Exception: pass
+    if not kept: raise RuntimeError("the cut line misses the part")
+    poly = any(is_complex(sh) for sh in kept)
+    if poly: BRepMesh_IncrementalMesh(compound(kept), diag*0.0008, False, 0.15, True)
+    res = hlr_lines(kept, N, X, poly, diag*0.0015)
+    for f in cuts:                                                   # cut faces: outline + hatch loops
+        for loop in face_loops_pts(f, diag*0.001):
+            res["cut"].append(np.array([(p.dot(X), p.dot(Y)) for p in loop + loop[:1]]))
+    return finish_view(res, kept, N, X)
+
+def hatch_loops(loops, spacing=2.5, ang=45.0):
+    """Hatch lines (even-odd fill) for closed 2D loops, all in sheet mm."""
+    if not loops: return []
+    a = math.radians(ang); R = np.array([[math.cos(a), math.sin(a)], [-math.sin(a), math.cos(a)]])
+    L = [np.asarray(l) @ R.T for l in loops]; ys = np.concatenate(L)[:, 1]; out = []
+    y = math.floor(ys.min()/spacing)*spacing + spacing/2
+    Ri = R.T
+    while y < ys.max():
+        xs = []
+        for l in L:
+            for p, q in zip(l, l[1:]):
+                if (p[1] - y)*(q[1] - y) < 0: xs.append(p[0] + (y - p[1])*(q[0] - p[0])/(q[1] - p[1]))
+        xs.sort()
+        for i in range(0, len(xs) - 1, 2): out.append([tuple(np.array([xs[i], y]) @ Ri.T), tuple(np.array([xs[i + 1], y]) @ Ri.T)])
+        y += spacing
+    return out
+
+def clip_circle(polys, c, r):
+    """Pieces of 2D polylines inside a circle."""
+    out = []; c = np.asarray(c, float)
+    for pl in polys:
+        cur = []
+        for p, q in zip(pl, pl[1:]):
+            p, q = np.asarray(p, float), np.asarray(q, float); d = q - p; f = p - c
+            A = d @ d; B = 2*f @ d; Cc = f @ f - r*r
+            if A < 1e-18: continue
+            disc = B*B - 4*A*Cc
+            if disc <= 0: t0, t1 = 1, 0
+            else: sq = math.sqrt(disc); t0, t1 = max(0, (-B - sq)/(2*A)), min(1, (-B + sq)/(2*A))
+            if t0 >= t1:
+                if cur: out.append(np.array(cur)); cur = []
+                continue
+            a_, b_ = p + d*t0, p + d*t1
+            if not cur or np.linalg.norm(np.array(cur[-1]) - a_) > 1e-9:
+                if cur: out.append(np.array(cur))
+                cur = [a_]
+            cur.append(b_)
+            if t1 < 1: out.append(np.array(cur)); cur = []
+        if len(cur) > 1: out.append(np.array(cur))
+    return out
+
+def new_drawing_doc(title=""):
+    return {"sheet": "A3", "projection": "third", "scale": "auto", "views": {"front": True, "top": True, "side": True, "iso": True},
+            "hidden": True, "smooth": False, "dims": True, "centres": True, "units": DISPLAY["unit"], "parts": True,
+            "tb": {"title": title, "pn": "", "material": "", "drawn": "", "checked": "", "company": "", "rev": "A"},
+            "sections": [], "details": [], "pdims": [], "notes": []}
+
+def next_label(doc):
+    used = {x["label"] for x in doc["sections"] + doc["details"]}
+    return next(ch for ch in "ABCDEFGHJKLMNPRSTUVWXYZ" if ch not in used)
+
+def make_sheet2(doc, cache, rows=None):
+    """Lay out the drawing. Returns (width, height, primitives, placed views {name: (bx, by, lo, k, w, h)})."""
+    o = doc; Wd, Ht = SHEETS[o["sheet"]]; P = []; placed = {}
+    third = o["projection"] == "third"; side = "right" if third else "left"
+    vw = o["views"]; ku = UNITS[o.get("units", "mm")]; nd = 2 if o.get("units", "mm") == "mm" else 3
+    sz = lambda v: v["hi"] - v["lo"]
+    m, tbw, tbh = 10, (180 if Wd > 300 else 150), 40
+    ax0, ay0, ax1, ay1 = m + 6, m + 6, Wd - m - 6, Ht - m - 6
+    gap = 22 if o["dims"] else 14
+    main = [n for n in ("front", "top", "side") if vw.get(n, True)] or ["front"]
+    get = lambda n: cache[side if n == "side" else n]
+    fw, fh = sz(get("front")); tw, th = sz(get("top")) if "top" in main else (0, 0); sw, sh = sz(get("side")) if "side" in main else (0, 0)
+    extras = [("sec", s_) for s_ in o["sections"]] + [("det", d_) for d_ in o["details"]] + ([("iso", None)] if vw.get("iso") else []) + ([("xiso", None)] if vw.get("exploded") and "xiso" in cache else [])
+    room_w = (ax1 - ax0) - (tbw if (extras or o["parts"]) else 0)*0.35
+    need_w = lambda k: (fw + (sw if "side" in main else 0))*k + 3*gap
+    need_h = lambda k: (fh + (th if "top" in main else 0))*k + 3*gap + (tbh if not extras else 0)
+    if o["scale"] == "auto":
+        frac = 0.62 if extras else 1.0
+        k = next((c for c in SCALES if need_w(c) <= room_w*frac and need_h(c) <= (ay1 - ay0)*(0.85 if extras else 1.0)), SCALES[-1])
+    else: k = float(o["scale"])
+    x0, y0 = ax0 + gap, ay0 + gap + (tbh if not extras and need_w(k) > (ax1 - ax0 - tbw) else 0)
+    if third: boxes = {"front": (x0, y0), "top": (x0, y0 + fh*k + gap), "side": (x0 + fw*k + gap, y0)}
+    else: boxes = {"top": (x0, y0), "front": (x0, y0 + th*k + gap), "side": (x0 + fw*k + gap, y0 + th*k + gap)}
+    def place(v, bx, by, kk, clip=None):
+        lo = v["lo"]; f = lambda pts: [(bx + (x - lo[0])*kk, by + (y - lo[1])*kk) for x, y in pts]
+        def lines(key):
+            src = v[key] if clip is None else clip_circle(v[key], clip[0], clip[1])
+            return [f(pl) for pl in src]
+        if o["hidden"]:
+            for pl in lines("hid"): P.append(("pl", pl, "hid"))
+        if o["smooth"]:
+            for pl in lines("smooth"): P.append(("pl", pl, "smooth"))
+        for pl in lines("vis"): P.append(("pl", pl, "vis"))
+        if v.get("cut"):
+            loops = [f(pl) for pl in v["cut"]]
+            for pl in hatch_loops(loops): P.append(("pl", pl, "hatch"))
+            for pl in loops: P.append(("pl", pl, "vis"))
+        if o["centres"] and clip is None:
+            for cx, cy, r in v["circles"]:
+                (px, py), = f([(cx, cy)]); rr = r*kk; e = rr + 2
+                P.append(("pl", [(px - e, py), (px + e, py)], "center")); P.append(("pl", [(px, py - e), (px, py + e)], "center"))
+        return f
+    tf = {}
+    for n in main:
+        v = get(n); bx, by = boxes[n]; tf[n] = place(v, bx, by, k); w_, h_ = sz(v)
+        placed[n] = (bx, by, v["lo"], k, w_*k, h_*k)
+        P.append(("txt", bx + w_*k/2, by + h_*k + 4, 2.5, VIEW_LABEL[side if n == "side" else n], "c", True))
+    main_x1 = max(boxes[n][0] + sz(get(n))[0]*k for n in main); main_y1 = max(boxes[n][1] + sz(get(n))[1]*k for n in main)
+    # extra views (sections, details, iso) packed in the free space
+    free = [[main_x1 + gap, ay0 + (tbh + 8 if True else 0), ax1, ay1], [ax0, main_y1 + gap, main_x1, ay1]]
+    if o["parts"] and rows: free[0][3] -= 8 + 6*(len(rows) + 1)
+    def put(w_, h_):
+        for fr in free:
+            if fr[2] - fr[0] >= w_ and fr[3] - fr[1] >= h_ + 8:
+                x, y = fr[0], fr[3] - h_ - 6; fr[3] = y - gap*0.6
+                return x, y
+        fr = max(free, key=lambda r: (r[2] - r[0])*(r[3] - r[1])); x, y = fr[0], max(fr[1], fr[3] - h_ - 6); fr[3] = y - gap*0.6; return x, y
+    for kind, ex in extras:
+        if kind == "sec":
+            key = ("sec", ex["base"], ex["axis"], round(ex["pos"], 6), ex.get("flip", False))
+            v = cache.get(key)
+            if v is None or ex["base"] not in tf: continue
+            w_, h_ = sz(v); x, y = put(w_*k, h_*k); place(v, x, y, k); placed[f"sec:{ex['label']}"] = (x, y, v["lo"], k, w_*k, h_*k)
+            P.append(("txt", x + w_*k/2, y - 5, 3.0, f"SECTION {ex['label']}-{ex['label']}", "c", True))
+            bx, by, lo, kk, bw, bh = placed[ex["base"]]                 # the cut line on its base view
+            if ex["axis"] == "v":
+                px = bx + (ex["pos"] - lo[0])*kk; a, b = (px, by - 4), (px, by + bh + 4); dvec = (-1 if not ex.get("flip") else 1, 0)
+                dvec = (1, 0) if ex.get("flip") else (-1, 0)
+            else:
+                py = by + (ex["pos"] - lo[1])*kk; a, b = (bx - 4, py), (bx + bw + 4, py); dvec = (0, -1) if ex.get("flip") else (0, 1)
+            P.append(("pl", [a, b], "cut"))
+            for q in (a, b):
+                tip = (q[0] + dvec[0]*6, q[1] + dvec[1]*6); P.append(("pl", [q, tip], "thin"))
+                L = math.hypot(*dvec); ux, uy = dvec[0]/L, dvec[1]/L
+                P.append(("tri", [tip, (tip[0] - ux*2.6 - uy*0.9, tip[1] - uy*2.6 + ux*0.9), (tip[0] - ux*2.6 + uy*0.9, tip[1] - uy*2.6 - ux*0.9)]))
+                P.append(("txt", tip[0] + dvec[0]*2.5, tip[1] + dvec[1]*2.5 - 1.2, 3.5, ex["label"], "c", True))
+        elif kind == "det":
+            if ex["base"] not in placed: continue
+            v = get(ex["base"]) if ex["base"] in ("front", "top") else get("side") if ex["base"] == "side" else None
+            if v is None: continue
+            kk = k*ex.get("mag", 2.0); r = ex["r"]; c = (ex["cx"], ex["cy"])
+            w_ = h_ = 2*r*kk; x, y = put(w_ + 4, h_ + 4)
+            sub = dict(v); sub["lo"] = np.array([c[0] - r, c[1] - r])
+            place(sub, x + 2, y + 2, kk, clip=(c, r))
+            P.append(("pl", [(x + 2 + w_/2 + (r*kk)*math.cos(a/48*math.tau), y + 2 + h_/2 + (r*kk)*math.sin(a/48*math.tau)) for a in range(49)], "thin"))
+            P.append(("txt", x + 2 + w_/2, y - 5, 3.0, f"DETAIL {ex['label']} ({scale_text(kk)})", "c", True))
+            bx, by, lo, bk, _, _ = placed[ex["base"]]; pcx, pcy = bx + (c[0] - lo[0])*bk, by + (c[1] - lo[1])*bk
+            P.append(("pl", [(pcx + r*bk*math.cos(a/48*math.tau), pcy + r*bk*math.sin(a/48*math.tau)) for a in range(49)], "thin"))
+            P.append(("txt", pcx + r*bk*0.75 + 2, pcy + r*bk*0.75 + 2, 3.5, ex["label"], "l", True))
+        elif kind in ("iso", "xiso") and kind in cache:
+            v = cache[kind]; w_, h_ = sz(v)
+            if w_ <= 0 or h_ <= 0: continue
+            ki = min(k, (80 if kind == "iso" else 110)/max(w_, 1e-9), (70 if kind == "iso" else 90)/max(h_, 1e-9)); x, y = put(w_*ki, h_*ki); place(v, x, y, ki)
+            P.append(("txt", x + w_*ki/2, y - 5, 2.5, "ISOMETRIC (not to scale)" if kind == "iso" else "EXPLODED VIEW (not to scale)", "c", True))
+
+    def arrow(x, y, dx, dy):
+        L = math.hypot(dx, dy) or 1; ux, uy = dx/L, dy/L; a, w = 2.6, 0.8
+        P.append(("tri", [(x, y), (x - ux*a - uy*w, y - uy*a + ux*w), (x - ux*a + uy*w, y - uy*a - ux*w)]))
+    def dim_line(pa, pb, off, kind, text):
+        (xa, ya), (xb, yb) = pa, pb
+        if kind == "h": d = (0, 1); ua, ub = (xa, max(ya, yb) + off if off > 0 else min(ya, yb) + off), (xb, max(ya, yb) + off if off > 0 else min(ya, yb) + off)
+        elif kind == "v": d = (1, 0); ua, ub = (max(xa, xb) + off if off > 0 else min(xa, xb) + off, ya), (max(xa, xb) + off if off > 0 else min(xa, xb) + off, yb)
+        else:
+            L = math.hypot(xb - xa, yb - ya) or 1; nx, ny = -(yb - ya)/L, (xb - xa)/L; ua, ub = (xa + nx*off, ya + ny*off), (xb + nx*off, yb + ny*off)
+        P.append(("pl", [pa, ua], "thin")); P.append(("pl", [pb, ub], "thin")); P.append(("pl", [ua, ub], "thin"))
+        dx, dy = ub[0] - ua[0], ub[1] - ua[1]; arrow(ua[0], ua[1], -dx, -dy); arrow(ub[0], ub[1], dx, dy)
+        mx, my = (ua[0] + ub[0])/2, (ua[1] + ub[1])/2
+        if kind == "v": P.append(("txt", mx - 1.2, my, 3.0, text, "vr", False))
+        else: P.append(("txt", mx, my + 1.2, 3.0, text, "c", False))
+    if o["dims"] and "front" in placed:                                  # overall sizes
+        lo3, hi3 = cache["bbox"]; ext = hi3 - lo3; bx, by, lo, kk, bw, bh = placed["front"]
+        dim_line((bx, by), (bx + bw, by), -9, "h", fmt(ext.x/ku, nd)); dim_line((bx, by), (bx, by + bh), -9, "v", fmt(ext.z/ku, nd))
+        if "side" in placed:
+            sx, sy, _, _, sw_, _ = placed["side"]; dim_line((sx, sy), (sx + sw_, sy), -9, "h", fmt(ext.y/ku, nd))
+        seen = set(); notes = 0
+        for n in main:
+            v = get(n); groups = {}
+            for cx, cy, r in v["circles"]: groups.setdefault(round(2*r, 3), []).append((cx, cy, r))
+            for slot, (dia, cs) in enumerate(sorted(groups.items())):
+                if dia in seen or notes >= 8: continue
+                seen.add(dia); notes += 1; cx, cy, r = cs[0]; (px, py), = tf[n]([(cx, cy)]); rr = r*k
+                ang = math.radians((45, 135, -45, -135)[slot % 4]); ca, sa = math.cos(ang), math.sin(ang); sgn = 1 if ca >= 0 else -1
+                ex_, ey = px + rr*ca, py + rr*sa; tx, ty = ex_ + 8*ca, ey + 8*sa
+                P.append(("pl", [(ex_, ey), (tx, ty), (tx + 4*sgn, ty)], "thin")); arrow(ex_, ey, -ca, -sa)
+                P.append(("txt", tx + 5*sgn, ty - 1, 3.0, (f"{len(cs)}× " if len(cs) > 1 else "") + f"Ø{fmt(dia/ku, nd)}", "l" if sgn > 0 else "r", False))
+    for d in o["pdims"]:                                                   # placed dimensions (stored in view coordinates)
+        if d["view"] not in placed: continue
+        bx, by, lo, kk, _, _ = placed[d["view"]]; S = lambda q: (bx + (q[0] - lo[0])*kk, by + (q[1] - lo[1])*kk)
+        if d["kind"] == "dia":
+            (px, py) = S(d["c"]); rr = d["r"]*kk; ang = math.radians(d.get("ang", 45)); ca, sa = math.cos(ang), math.sin(ang); sgn = 1 if ca >= 0 else -1
+            ex_, ey = px + rr*ca, py + rr*sa; tx, ty = ex_ + 8*ca, ey + 8*sa
+            P.append(("pl", [(ex_, ey), (tx, ty), (tx + 4*sgn, ty)], "thin")); arrow(ex_, ey, -ca, -sa)
+            P.append(("txt", tx + 5*sgn, ty - 1, 3.0, f"Ø{fmt(2*d['r']/ku, nd)}", "l" if sgn > 0 else "r", False)); continue
+        a, b = d["a"], d["b"]; val = abs(b[0] - a[0]) if d["kind"] == "h" else abs(b[1] - a[1]) if d["kind"] == "v" else math.hypot(b[0] - a[0], b[1] - a[1])
+        dim_line(S(a), S(b), d["off"], d["kind"], fmt(val/ku, nd))
+    for nt in o["notes"]:
+        for i, line in enumerate(nt["text"].split("\n")): P.append(("txt", nt["x"], nt["y"] - i*5, 3.5, line, "l", False))
+    # border, title block, parts list
+    P.append(("pl", [(m, m), (Wd - m, m), (Wd - m, Ht - m), (m, Ht - m), (m, m)], "border"))
+    P.append(("pl", [(5, 5), (Wd - 5, 5), (Wd - 5, Ht - 5), (5, Ht - 5), (5, 5)], "thin"))
+    tb = o["tb"]; tx0, ty0, tx1, ty1 = Wd - m - tbw, m, Wd - m, m + tbh
+    rect = lambda a, b, c, d, st_="vis": P.append(("pl", [(a, b), (c, b), (c, d), (a, d), (a, b)], st_))
+    rect(tx0, ty0, tx1, ty1, "border"); rows_y = [ty0, ty0 + 10, ty0 + 20, ty1]
+    for y in rows_y[1:3]: P.append(("pl", [(tx0, y), (tx1, y)], "vis"))
+    cw = tbw/4
+    for i in (1, 2, 3): P.append(("pl", [(tx0 + cw*i, ty0), (tx0 + cw*i, ty0 + 20)], "vis"))
+    def cell(x, y, label, value, size=3.2):
+        P.append(("txt", x + 1.5, y + 7.2, 1.8, label, "l", False)); P.append(("txt", x + 1.5, y + 2.0, size, value or "-", "l", True))
+    P.append(("txt", tx0 + 1.5, ty1 - 3.2, 1.8, "TITLE", "l", False)); P.append(("txt", tx0 + 1.5, ty0 + 23, 6, tb.get("title") or "Untitled", "l", True))
+    P.append(("txt", tx1 - 1.5, ty1 - 3.2, 1.8, tb.get("company") or "", "r", True))
+    cell(tx0, ty0 + 10, "PART NUMBER", tb.get("pn")); cell(tx0 + cw, ty0 + 10, "MATERIAL", tb.get("material"))
+    cell(tx0 + 2*cw, ty0 + 10, "DRAWN", tb.get("drawn")); cell(tx0 + 3*cw, ty0 + 10, "CHECKED", tb.get("checked"))
+    cell(tx0, ty0, "SCALE", scale_text(k)); cell(tx0 + cw, ty0, "UNITS", {"mm": "mm", "in": "inch"}.get(o.get("units", "mm"), "mm"))
+    cell(tx0 + 2*cw, ty0, "DATE", datetime.date.today().isoformat()); cell(tx0 + 3*cw, ty0, "REV / SHEET", f"{tb.get('rev') or '-'}   {o['sheet']}")
+    P.append(("txt", tx1 - 1.5, ty0 + 23, 2.0, ("THIRD" if third else "FIRST") + " ANGLE", "r", False))
+    if o["parts"] and rows:
+        cols = [("ITEM", 10), ("QTY", 10), ("PART NUMBER", 34), ("NAME", 52), ("MATERIAL", tbw - 106)]
+        y = ty1 + 6; rh = 6
+        for i, r in enumerate(list(reversed(rows)) + [None]):
+            yy = y + i*rh; x = tx0
+            vals = ["ITEM", "QTY", "PART NUMBER", "NAME", "MATERIAL"] if r is None else \
+                   [str(len(rows) - i), str(r["qty"]), r.get("pn") or "", r["name"], r.get("material") or ""]
+            for (lab, wcol), val in zip(cols, vals):
+                rect(x, yy, x + wcol, yy + rh, "thin"); P.append(("txt", x + 1.2, yy + 1.8, 2.4, val[:28], "l", r is None)); x += wcol
+    return Wd, Ht, P, placed
+
+def exact_bbox(shape):
+    """Tight bounding box (no triangulation / tolerance padding) - for the sizes printed on drawings."""
+    from OCP.BRepBndLib import BRepBndLib
+    b = Bnd_Box()
+    try: st(BRepBndLib, "AddOptimal")(shape, b, False, False)
+    except Exception: return bbox(shape)
+    if b.IsVoid(): return bbox(shape)
+    lo, hi = b.CornerMin(), b.CornerMax(); return V(lo.X(), lo.Y(), lo.Z()), V(hi.X(), hi.Y(), hi.Z())
+
+class SheetView2(SheetView):
+    """Sheet preview that also takes clicks for placing dimensions, notes, section lines and detail circles."""
+    def __init__(s, dlg):
+        super().__init__(); s.dlg = dlg; s.setMouseTracking(True); s.hover = None; s.down = None
+    def geom(s):
+        Wd, Ht = s.sheet[0], s.sheet[1]; k = min((s.width() - 30)/Wd, (s.height() - 30)/Ht)*s.zoom
+        return k, (s.width() - Wd*k)/2 + s.pan.x(), (s.height() - Ht*k)/2 + s.pan.y()
+    def to_sheet(s, pt):
+        k, ox, oy = s.geom(); return ((pt.x() - ox)/k, s.sheet[1] - (pt.y() - oy)/k)
+    def to_px(s, x, y):
+        k, ox, oy = s.geom(); return C.QPointF(ox + x*k, oy + (s.sheet[1] - y)*k)
+    def paintEvent(s, e):
+        super().paintEvent(e)
+        if not s.sheet or not s.dlg.mode: return
+        p = G.QPainter(s); p.setRenderHint(G.QPainter.Antialiasing)
+        for q in s.dlg.picks:
+            c = s.to_px(*q); p.setPen(G.QPen(G.QColor(ACCENT), 2)); p.drawEllipse(c, 4, 4)
+        if s.hover:
+            c = s.to_px(*s.hover[0]); p.setPen(G.QPen(G.QColor("#e8710a"), 2)); p.drawEllipse(c, 5, 5)
+        p.setPen(G.QColor("#ffffff")); f = p.font(); f.setPixelSize(13); p.setFont(f)
+        p.drawText(C.QPointF(12, 22), s.dlg.mode_hint())
+    def mousePressEvent(s, e):
+        if s.dlg.mode and e.button() == C.Qt.LeftButton: s.down = e.position(); return
+        super().mousePressEvent(e)
+    def mouseMoveEvent(s, e):
+        if s.dlg.mode and s.sheet:
+            s.hover = s.dlg.snap(s.to_sheet(e.position()), 10/s.geom()[0]); s.update()
+        if s.down is None: super().mouseMoveEvent(e)
+    def mouseReleaseEvent(s, e):
+        if s.down is not None and s.dlg.mode:
+            if (e.position() - s.down).manhattanLength() < 5: s.dlg.click(s.to_sheet(e.position()), 10/s.geom()[0])
+            s.down = None; s.update(); return
+        super().mouseReleaseEvent(e)
+    def keyPressEvent(s, e):
+        if e.key() == C.Qt.Key_Escape: s.dlg.set_mode(None); return
+        super().keyPressEvent(e)
+
+
+class DrawingDialog2(W.QDialog):
+    """Drawing editor: pick the views and scale, add section and detail views, place dimensions and notes,
+    fill in the title block; export PDF / SVG / DXF. The drawing is saved with the design."""
+    def __init__(s, parent, shapes, doc, rows=None, xshapes=None):
+        super().__init__(parent); s.setWindowTitle("Drawing"); s.resize(1280, 820)
+        s.shapes, s.doc, s.rows, s.mode, s.picks, s.cache = shapes, doc, rows or [], None, [], {}
+        W.QApplication.setOverrideCursor(C.Qt.WaitCursor)
+        try:
+            for n in ("front", "top", "right", "left", "iso"): s.cache[n] = project_named(shapes, n)
+            s.cache["bbox"] = exact_bbox(compound(shapes))
+            if xshapes: s.cache["xiso"] = project_named(xshapes, "iso")
+            for x in doc["sections"]: s.section_cache(x)
+        finally: W.QApplication.restoreOverrideCursor()
+        h = W.QHBoxLayout(s); side = W.QScrollArea(); side.setWidgetResizable(True); side.setFixedWidth(300)
+        inner = W.QWidget(); f = W.QFormLayout(inner); side.setWidget(inner); h.addWidget(side)
+        s.view = SheetView2(s); h.addWidget(s.view, 1); s.form = f
+        def combo(items, val):
+            b = W.QComboBox()
+            for lab, data in items: b.addItem(lab, data)
+            b.setCurrentIndex(max(0, b.findData(val))); return b
+        s.w_sheet = combo([(k_, k_) for k_ in SHEETS], doc["sheet"]); s.w_proj = combo([("Third angle (ANSI)", "third"), ("First angle (ISO)", "first")], doc["projection"])
+        s.w_scale = combo([("Auto", "auto")] + [(scale_text(c), c) for c in SCALES], doc["scale"])
+        s.w_units = combo([("Millimetres (mm)", "mm"), ("Inches (in)", "in")], doc.get("units", "mm"))
+        f.addRow(W.QLabel("<b>Sheet</b>")); f.addRow("Size", s.w_sheet); f.addRow("Projection", s.w_proj); f.addRow("Scale", s.w_scale); f.addRow("Units", s.w_units)
+        f.addRow(W.QLabel("<b>Views</b>")); s.chk = {}
+        for key, lab in (("front", "Front"), ("top", "Top"), ("side", "Side (right / left)"), ("iso", "Isometric")) + \
+                        ((("exploded", "Exploded view (from the storyboard)"),) if xshapes else ()):
+            b = W.QCheckBox(lab); b.setChecked(doc["views"].get(key, True)); s.chk[key] = b; f.addRow(b)
+        for key, lab in (("hidden", "Hidden lines"), ("smooth", "Tangent edges"), ("dims", "Overall sizes + hole callouts"), ("centres", "Centre marks"),
+                         ("parts", "Parts list")):
+            b = W.QCheckBox(lab); b.setChecked(bool(doc.get(key))); s.chk[key] = b; f.addRow(b)
+        f.addRow(W.QLabel("<b>Add</b>"))
+        for lab, mode in (("Dimension (2 points + place)", "dim"), ("Diameter (click a circle)", "dia"), ("Note", "note"),
+                          ("Section - vertical cut line", "secv"), ("Section - horizontal cut line", "sech"), ("Detail view (centre + radius)", "det")):
+            b = W.QPushButton(lab); b.clicked.connect(lambda _=False, m_=mode: s.set_mode(m_)); f.addRow(b)
+        s.w_mag = W.QDoubleSpinBox(); s.w_mag.setRange(1.1, 20); s.w_mag.setValue(2.0); s.w_mag.setSuffix("×"); f.addRow("Detail scale", s.w_mag)
+        rm = W.QPushButton("Remove last added"); rm.clicked.connect(s.remove_last); f.addRow(rm)
+        f.addRow(W.QLabel("<b>Title block</b>")); s.tb = {}
+        for key, lab in (("title", "Title"), ("pn", "Part number"), ("material", "Material"), ("drawn", "Drawn by"), ("checked", "Checked by"),
+                         ("company", "Company"), ("rev", "Revision")):
+            e_ = W.QLineEdit(doc["tb"].get(key, "")); s.tb[key] = e_; f.addRow(lab, e_); e_.textChanged.connect(s.rebuild)
+        for w_ in (s.w_sheet, s.w_proj, s.w_scale, s.w_units): w_.currentIndexChanged.connect(s.rebuild)
+        for b in s.chk.values(): b.toggled.connect(s.rebuild)
+        for lab, fn in (("Export PDF...", s.export_pdf), ("Export SVG...", s.export_svg), ("Export DXF...", s.export_dxf)):
+            b = W.QPushButton(lab); b.clicked.connect(lambda _=False, fn=fn: fn()); f.addRow(b)
+        close = W.QPushButton("Close"); close.clicked.connect(s.accept); f.addRow(close)
+        s.rebuild()
+
+    # ---- model ----
+    def section_cache(s, x):
+        key = ("sec", x["base"], x["axis"], round(x["pos"], 6), x.get("flip", False))
+        if key not in s.cache:
+            base = {"side": "right" if s.doc["projection"] == "third" else "left"}.get(x["base"], x["base"])
+            s.cache[key] = section_view(s.shapes, base, x["axis"], x["pos"], x.get("flip", False))
+        return s.cache[key]
+
+    def sync(s):
+        d = s.doc; d["sheet"], d["projection"], d["scale"], d["units"] = s.w_sheet.currentData(), s.w_proj.currentData(), s.w_scale.currentData(), s.w_units.currentData()
+        for key in ("front", "top", "side", "iso", "exploded"):
+            if key in s.chk: d["views"][key] = s.chk[key].isChecked()
+        for key in ("hidden", "smooth", "dims", "centres", "parts"): d[key] = s.chk[key].isChecked()
+        for key, e_ in s.tb.items(): d["tb"][key] = e_.text()
+
+    def rebuild(s, *_):
+        s.sync(); Wd, Ht, P, s.placed = make_sheet2(s.doc, s.cache, s.rows); s.sheet = (Wd, Ht, P); s.view.sheet = s.sheet; s.view.update()
+
+    # ---- interaction ----
+    HINTS = {"dim": ["Click the first point", "Click the second point", "Click where the dimension line goes"],
+             "dia": ["Click a circle (hole or boss) in a view"], "note": ["Click where the note goes"],
+             "secv": ["Click on a view where the vertical cut goes"], "sech": ["Click on a view where the horizontal cut goes"],
+             "det": ["Click the centre of the detail", "Click to set its radius"]}
+    def mode_hint(s):
+        h = s.HINTS.get(s.mode, [""]); return h[min(len(s.picks), len(h) - 1)] + "   (Esc to stop)"
+    def set_mode(s, m): s.mode, s.picks = m, []; s.view.setFocus(); s.view.update()
+
+    def view_at(s, q):
+        for name, (bx, by, lo, k, w_, h_) in s.placed.items():
+            if bx - 3 <= q[0] <= bx + w_ + 3 and by - 3 <= q[1] <= by + h_ + 3: return name
+        return None
+    def to_view(s, name, q):
+        bx, by, lo, k, _, _ = s.placed[name]; return ((q[0] - bx)/k + lo[0], (q[1] - by)/k + lo[1])
+    def to_sheetpt(s, name, v):
+        bx, by, lo, k, _, _ = s.placed[name]; return (bx + (v[0] - lo[0])*k, by + (v[1] - lo[1])*k)
+    def view_data(s, name):
+        if name.startswith("sec:"):
+            x = next(x for x in s.doc["sections"] if x["label"] == name[4:]); return s.section_cache(x)
+        return s.cache[{"side": "right" if s.doc["projection"] == "third" else "left"}.get(name, name)]
+
+    def snap(s, q, tol):
+        """(sheet point, view, view point) of the nearest line end / circle centre within tol sheet-mm."""
+        name = s.view_at(q)
+        if not name: return None
+        v = s.view_data(name); best = None
+        cands = [tuple(pl[0]) for pl in v["vis"]] + [tuple(pl[-1]) for pl in v["vis"]] + [(cx, cy) for cx, cy, _ in v["circles"]]
+        for c in cands:
+            sp = s.to_sheetpt(name, c); d = math.hypot(sp[0] - q[0], sp[1] - q[1])
+            if d < tol and (best is None or d < best[0]): best = (d, sp, c)
+        return (best[1], name, best[2]) if best else None
+
+    def click(s, q, tol):
+        d = s.doc; before = {k: len(d[k]) for k in ("pdims", "notes", "details", "sections")}
+        try: s.click_(q, tol)
+        finally:
+            for k, n in before.items():
+                if len(d[k]) > n: s.added = getattr(s, "added", []) + [k]
+    def click_(s, q, tol):
+        d = s.doc; m = s.mode
+        if m == "note":
+            text, ok = W.QInputDialog.getMultiLineText(s, "Note", "Text:")
+            if ok and text.strip(): d["notes"].append({"x": q[0], "y": q[1], "text": text.strip()})
+            s.set_mode(None); s.rebuild(); return
+        if m == "dia":
+            name = s.view_at(q)
+            if not name: return
+            v = s.view_data(name); vq = s.to_view(name, q); best = None
+            for cx, cy, r in v["circles"]:
+                dd = abs(math.hypot(vq[0] - cx, vq[1] - cy) - r)
+                if best is None or dd < best[0]: best = (dd, cx, cy, r)
+            if best and best[0]*s.placed[name][3] < tol*2:
+                ang = math.degrees(math.atan2(vq[1] - best[2], vq[0] - best[1]))
+                d["pdims"].append({"kind": "dia", "view": name, "c": [best[1], best[2]], "r": best[3], "ang": ang}); s.set_mode(None); s.rebuild()
+            return
+        if m in ("secv", "sech"):
+            name = s.view_at(q)
+            if not name or name.startswith(("sec:", "det:")) or name == "iso": return
+            vq = s.to_view(name, q); lab = next_label(d)
+            x = {"label": lab, "base": name, "axis": "v" if m == "secv" else "h", "pos": vq[0] if m == "secv" else vq[1], "flip": False}
+            try:
+                W.QApplication.setOverrideCursor(C.Qt.WaitCursor); s.section_cache(x); d["sections"].append(x)
+            except Exception as ex: W.QMessageBox.warning(s, "Section", str(ex))
+            finally: W.QApplication.restoreOverrideCursor()
+            s.set_mode(None); s.rebuild(); return
+        if m == "det":
+            if not s.picks:
+                name = s.view_at(q)
+                if not name or name not in ("front", "top", "side"): return
+                s.picks = [q]; s._det_view = name; return
+            name = s._det_view; c = s.to_view(name, s.picks[0]); r = math.hypot(q[0] - s.picks[0][0], q[1] - s.picks[0][1])/s.placed[name][3]
+            if r > 0: d["details"].append({"label": next_label(d), "base": name, "cx": c[0], "cy": c[1], "r": r, "mag": s.w_mag.value()})
+            s.set_mode(None); s.rebuild(); return
+        if m == "dim":
+            if len(s.picks) < 2:
+                sn = s.snap(q, tol)
+                if not sn: return
+                if s.picks and sn[1] != s._dim_view: return
+                s._dim_view = sn[1]; s.picks.append(sn[0]); s._dim_pts = getattr(s, "_dim_pts", [])[:len(s.picks) - 1] + [sn[2]]; return
+            (xa, ya), (xb, yb) = s.picks
+            dx, dy = abs(xb - xa), abs(yb - ya)
+            kind = "h" if (q[1] > max(ya, yb) or q[1] < min(ya, yb)) and dx > 1e-6 else "v" if dy > 1e-6 else "h"
+            if dx > 1e-6 and dy > 1e-6 and min(ya, yb) <= q[1] <= max(ya, yb) and min(xa, xb) <= q[0] <= max(xa, xb): kind = "a"
+            if kind == "h": off = q[1] - (max(ya, yb) if q[1] > max(ya, yb) else min(ya, yb))
+            elif kind == "v": off = q[0] - (max(xa, xb) if q[0] > max(xa, xb) else min(xa, xb))
+            else:
+                L = math.hypot(xb - xa, yb - ya); off = ((q[0] - xa)*(-(yb - ya)) + (q[1] - ya)*(xb - xa))/L
+            d["pdims"].append({"kind": kind, "view": s._dim_view, "a": list(s._dim_pts[0]), "b": list(s._dim_pts[1]), "off": off})
+            s.set_mode(None); s.rebuild(); return
+
+    def remove_last(s):
+        d = s.doc
+        n_ = {k: len(d[k]) for k in ("pdims", "notes", "details", "sections")}
+        hist = [k for k in getattr(s, "added", []) if d[k]]
+        if hist: d[hist[-1]].pop(); s.added = hist[:-1]; s.rebuild(); return
+        for key in ("pdims", "notes", "details", "sections"):
+            if d[key]: d[key].pop(); break
+        s.rebuild()
+
+    # ---- export ----
+    def ask(s, filt, ext):
+        path, _ = W.QFileDialog.getSaveFileName(s, "Export drawing", (s.doc["tb"].get("title") or "drawing") + ext, filt)
+        return path + ext if path and not os.path.splitext(path)[1] else path
+    def export_pdf(s, path=None):
+        path = path or s.ask("PDF (*.pdf)", ".pdf")
+        if not path: return
+        Wd, Ht, _ = s.sheet; wr = G.QPdfWriter(path)
+        wr.setPageSize(G.QPageSize(C.QSizeF(Wd, Ht), G.QPageSize.Unit.Millimeter, "Fission", G.QPageSize.SizeMatchPolicy.ExactMatch))
+        wr.setPageMargins(C.QMarginsF(0, 0, 0, 0)); wr.setResolution(600); wr.setTitle(s.doc["tb"].get("title", ""))
+        p = G.QPainter(wr); render_sheet(p, s.sheet, 600/25.4); p.end(); return path
+    def export_svg(s, path=None):
+        from PySide6.QtSvg import QSvgGenerator
+        path = path or s.ask("SVG (*.svg)", ".svg")
+        if not path: return
+        Wd, Ht, _ = s.sheet; k = 10; g = QSvgGenerator(); g.setFileName(path)
+        g.setSize(C.QSize(int(Wd*k), int(Ht*k))); g.setViewBox(C.QRect(0, 0, int(Wd*k), int(Ht*k))); g.setResolution(254)
+        p = G.QPainter(g); render_sheet(p, s.sheet, k); p.end(); return path
+    def export_dxf(s, path=None):
+        path = path or s.ask("DXF (*.dxf)", ".dxf")
+        if path: write_dxf(path, s.sheet)
+        return path
 
 class DrawingDialog(W.QDialog):
     """FreeCAD-TechDraw-like sheet: front / top / side views + isometric, hidden lines, overall dimensions, title block."""
@@ -8310,8 +12023,37 @@ class DrawingDialog(W.QDialog):
 # ---------------------------------------------------------------------------------------------------------------
 #  Main window
 # ---------------------------------------------------------------------------------------------------------------
+
+class RibbonFit(W.QScrollArea):
+    """Holds one ribbon page so the window can be narrower than the ribbon: first the buttons shrink, then the ribbon
+    scrolls sideways (mouse wheel works on it)."""
+    def __init__(s, rib):
+        super().__init__(); s.rib = rib; s.setWidget(rib); s.setWidgetResizable(True); s.setFrameShape(W.QFrame.NoFrame)
+        s.setVerticalScrollBarPolicy(C.Qt.ScrollBarAlwaysOff); s.setHorizontalScrollBarPolicy(C.Qt.ScrollBarAsNeeded)
+        s.horizontalScrollBar().setStyleSheet("QScrollBar:horizontal{height:7px;background:transparent}"
+                                              "QScrollBar::handle:horizontal{background:#b9c0c8;border-radius:3px;min-width:40px}"
+                                              "QScrollBar::add-line,QScrollBar::sub-line{width:0}")
+        s.setSizePolicy(W.QSizePolicy.Ignored, W.QSizePolicy.Fixed)
+        s.btns = [b for b in rib.findChildren(W.QToolButton) if b.objectName() == "rb"]
+        s.compact = False; s.full_w = rib.sizeHint().width(); s.full_h = rib.sizeHint().height()
+        s.setFixedHeight(s.full_h + 8)
+    def set_compact(s, on):
+        if on == s.compact: return
+        s.compact = on; n, ic = (36, 26) if on else (46, 34)
+        for b in s.btns: b.setFixedSize(n, n); b.setIconSize(C.QSize(ic, ic))
+        s.rib.adjustSize()
+    def resizeEvent(s, e):
+        s.set_compact(s.viewport().width() < s.full_w)
+        super().resizeEvent(e)
+    def minimumSizeHint(s): return C.QSize(200, s.full_h + 8)
+    def sizeHint(s): return C.QSize(s.full_w, s.full_h + 8)
+    def wheelEvent(s, e):
+        sb = s.horizontalScrollBar()
+        if sb.maximum() > 0: sb.setValue(sb.value() - e.angleDelta().y()); e.accept()
+        else: super().wheelEvent(e)
+
 class CmdPanel(W.QFrame):
-    """Floating fission-style command dialog in the top-left corner of the viewport."""
+    """Floating Fusion-style command dialog in the top-left corner of the viewport."""
     def __init__(s, parent, title, hint, on_done):
         super().__init__(parent); s.setObjectName("cmd"); s.setFixedWidth(290)
         lay = W.QVBoxLayout(s); lay.setContentsMargins(0, 0, 0, 0); lay.setSpacing(0)
@@ -8332,19 +12074,291 @@ class CmdPanel(W.QFrame):
         s.form.addRow(label, b); return b
 
 class TLStep(W.QToolButton):
-    """Timeline step: click = roll the model to this step, double-click = edit its parameters, right-click = menu."""
-    def __init__(s, on_click, on_double, on_delete=None):
-        super().__init__(); s.on_click, s.on_double, s.on_delete = on_click, on_double, on_delete
-        s._t = C.QTimer(s); s._t.setSingleShot(True); s._t.timeout.connect(lambda: s.on_click())
+    """Timeline step: click = roll the model to this step, double-click = edit, shift-click = select for a folder,
+    drag = move it, right-click = menu."""
+    MIME = "application/x-fission-step"
+    def __init__(s, on_click, on_double, on_delete=None, idx=None, win=None):
+        super().__init__(); s.on_click, s.on_double, s.on_delete, s.idx, s.win = on_click, on_double, on_delete, idx, win
+        s._t = C.QTimer(s); s._t.setSingleShot(True); s._t.timeout.connect(lambda: s.on_click()); s._press = None
+    def mousePressEvent(s, e):
+        s._press = e.position().toPoint() if e.button() == C.Qt.LeftButton else None
+        super().mousePressEvent(e)
+    def mouseMoveEvent(s, e):
+        if s._press is not None and s.idx and (e.position().toPoint() - s._press).manhattanLength() >= W.QApplication.startDragDistance():
+            s._press = None; s.setDown(False)
+            d = G.QDrag(s); md = C.QMimeData(); md.setData(s.MIME, str(s.idx).encode()); d.setMimeData(md)
+            d.setPixmap(s.icon().pixmap(24, 24)); d.exec(C.Qt.MoveAction); return
+        super().mouseMoveEvent(e)
     def mouseReleaseEvent(s, e):
         super().mouseReleaseEvent(e)
-        if e.button() == C.Qt.LeftButton and s.rect().contains(e.position().toPoint()): s._t.start(W.QApplication.doubleClickInterval())
+        if e.button() == C.Qt.LeftButton and s.rect().contains(e.position().toPoint()):
+            if e.modifiers() & (C.Qt.ShiftModifier | C.Qt.ControlModifier) and s.win and s.idx: s.win.tl_toggle_sel(s.idx); return
+            s._t.start(W.QApplication.doubleClickInterval())
     def mouseDoubleClickEvent(s, e):
         s._t.stop(); C.QTimer.singleShot(0, s.on_double)
     def contextMenuEvent(s, e):
         m = W.QMenu(s); m.addAction("Edit feature...", s.on_double); m.addAction("Roll history here", s.on_click)
+        if s.win and s.idx: s.win.tl_step_menu(m, s.idx)
         if s.on_delete: m.addSeparator(); m.addAction("Delete step", s.on_delete)
         m.exec(e.globalPos())
+
+
+class TLStrip(W.QWidget):
+    """The row of timeline steps; accepts a dragged step and moves it to where it was dropped."""
+    def __init__(s, win):
+        super().__init__(); s.win = win; s.setAcceptDrops(True); s.drop_x = None
+    def dragEnterEvent(s, e):
+        if e.mimeData().hasFormat(TLStep.MIME): e.acceptProposedAction()
+    def dragMoveEvent(s, e):
+        if e.mimeData().hasFormat(TLStep.MIME): s.drop_x = e.position().x(); s.update(); e.acceptProposedAction()
+    def dragLeaveEvent(s, e): s.drop_x = None; s.update()
+    def dropEvent(s, e):
+        s.drop_x = None; s.update()
+        if not e.mimeData().hasFormat(TLStep.MIME): return
+        i = int(bytes(e.mimeData().data(TLStep.MIME)).decode()); e.acceptProposedAction()
+        C.QTimer.singleShot(0, lambda: s.win.tl_drop(i, e.position().x()))
+    def paintEvent(s, e):
+        super().paintEvent(e)
+        if s.drop_x is not None:
+            p = G.QPainter(s); p.setPen(_pen("#0696d7", 3)); x = s.win.tl_slot_x(s.drop_x); p.drawLine(C.QLineF(x, 2, x, s.height() - 2))
+
+
+class TimelineWin:
+    """Window side of the 0.7 timeline: badges, suppress, rename, drag to reorder, folders."""
+    def tl_init(s):
+        s.tl_sel = set()
+
+    def tl_icon(s, stt, i, pos):
+        ic = icon(stt["kind"], 24); pm = ic.pixmap(48, 48)
+        op = stt.get("op") or {}
+        if i > pos or op.get("suppressed"): pm = ic.pixmap(48, 48, G.QIcon.Disabled)
+        pm = pm.copy(); p = G.QPainter(pm); p.setRenderHint(G.QPainter.Antialiasing); W_ = pm.width()
+        if op.get("suppressed"):
+            p.setPen(_pen("#8a929b", W_/12)); p.drawLine(C.QLineF(W_*0.1, W_*0.9, W_*0.9, W_*0.1))
+        badge = "#d93025" if stt.get("err") else "#f2b705" if stt.get("warn") else None
+        if badge:
+            r = C.QRectF(W_*0.52, W_*0.52, W_*0.46, W_*0.46); p.setPen(_pen("white", W_/24)); p.setBrush(G.QColor(badge)); p.drawEllipse(r)
+            f = p.font(); f.setPixelSize(int(W_*0.36)); f.setBold(True); p.setFont(f); p.setPen(G.QColor("white")); p.drawText(r, C.Qt.AlignCenter, "!")
+        p.end(); return G.QIcon(pm)
+
+    def tl_name(s, i):
+        v = s.vp; stt = v.states[i]; op = stt.get("op") or {}
+        if op.get("label"): return op["label"]
+        cm = cmd_for_op(op) if op else None; nm = cm.title.title() if cm else s.NAMES.get(stt['kind'], stt['kind'].title())
+        if op.get("t") in ("sk2", "sketch"):
+            nn = sum(1 for x in v.states[1:i] if x["op"] and x["op"].get("t") in ("sk2", "sketch")); nm = op.get("name") or f"Sketch{nn + 1}"
+        return nm
+
+    def rebuild_timeline(s):
+        v = s.vp; groups = v.tl_clean_groups()
+        key = (len(v.states), v.pos, id(v.states[-1]), getattr(v, "tl_ver", 0), tuple(sorted(s.tl_sel)),
+               tuple((g["a"], g["b"], g.get("open", False), g["name"]) for g in groups), bool(v.skedit))
+        if key == s._tl_key: return
+        s._tl_key = key
+        while s.tl.count():
+            w = s.tl.takeAt(0).widget()
+            if w: w.deleteLater()
+        s.tl_btns = []
+        def marker(): mk = W.QFrame(); mk.setObjectName("tlmarker"); mk.setFixedSize(3, 30); s.tl.addWidget(mk)
+        if v.pos == 0 and len(v.states) > 1: marker()
+        nerr = 0
+        for i, stt in enumerate(v.states[1:], 1):
+            op = stt.get("op") or {}
+            nerr += bool(stt.get("err"))
+            g = v.group_of(i)
+            if g and not g.get("open"):
+                if i == g["a"]:
+                    fb = W.QToolButton(); fb.setObjectName("tlstep"); fb.setFixedSize(34, 32); fb.setIconSize(C.QSize(24, 24))
+                    errs = sum(1 for j in range(g["a"], g["b"] + 1) if v.states[j].get("err"))
+                    fb.setIcon(s.tl_icon({"kind": "tlfolder", "op": {}, "err": errs > 0}, 1, 1))
+                    fb.setToolTip(f"{g['name']}: steps {g['a']}-{g['b']}" + (f" ({errs} failed)" if errs else "") + "\nClick to open the folder")
+                    fb.clicked.connect(lambda _=False, g=g: s.tl_toggle_group(g)); fb.setContextMenuPolicy(C.Qt.CustomContextMenu)
+                    fb.customContextMenuRequested.connect(lambda pt, g=g, fb=fb: s.tl_group_menu(g, fb.mapToGlobal(pt)))
+                    s.tl.addWidget(fb); s.tl_btns.append((g["a"], fb))
+                if g["a"] <= v.pos <= g["b"] and i == g["b"]: marker()
+                continue
+            if op.get("quiet"):                                       # renames etc.: undoable, but no icon
+                if i == v.pos: marker()
+                continue
+            if g and i == g["a"]:
+                ob = W.QToolButton(); ob.setObjectName("tlgroup"); ob.setFixedSize(14, 32); ob.setText("⌄"); ob.setToolTip(f"{g['name']} - click to close the folder")
+                ob.setStyleSheet("QToolButton{border:none;border-left:2px solid #0696d7;color:#0696d7}")
+                ob.clicked.connect(lambda _=False, g=g: s.tl_toggle_group(g)); s.tl.addWidget(ob)
+            b = TLStep(lambda j=i: s.goto(j), lambda j=i: s.edit_step(j), lambda j=i: s.delete_step(j), i, s)
+            b.setObjectName("tlstep"); b.setFixedSize(30, 32); b.setIconSize(C.QSize(24, 24)); b.setIcon(s.tl_icon(stt, i, v.pos))
+            if i in s.tl_sel: b.setStyleSheet("QToolButton{background:#cfe8fb;border:1px solid #0696d7;border-radius:3px}")
+            nm = s.tl_name(i) + ("  (editing)" if v.skedit and v.skedit.get("i") == i else "")
+            tip = f"{i}. {nm}" + ("  (suppressed)" if op.get("suppressed") else "") + ("" if i <= v.pos else "  (undone - click to restore)")
+            if stt.get("err"): tip += f"\n⛔ This step failed: {stt['err']}\nEdit it, suppress it or delete it."
+            elif stt.get("warn"): tip += f"\n⚠ Rebuilt {stt['warn']} - check it."
+            b.setToolTip(tip + "\nDouble-click to edit · drag to move · shift-click to select · right-click for more")
+            s.tl.addWidget(b); s.tl_btns.append((i, b))
+            if g and i == g["b"]:
+                cb = W.QFrame(); cb.setFixedSize(2, 32); cb.setStyleSheet("background:#0696d7"); s.tl.addWidget(cb)
+            if i == v.pos: marker()
+        s.tl.addStretch(1)
+        C.QTimer.singleShot(0, lambda: s.tl_scroll.horizontalScrollBar().setValue(s.tl_scroll.horizontalScrollBar().maximum()))
+        s.a_undo.setEnabled(v.pos > 0 or bool(v.pts)); s.a_redo.setEnabled(v.pos < len(v.states) - 1)
+        for k in ("first", "prev"): s.tlb[k].setEnabled(v.pos > 0)
+        for k in ("next", "last"): s.tlb[k].setEnabled(v.pos < len(v.states) - 1)
+        s.tlb["play"].setEnabled(len(v.states) > 1)
+        if nerr and getattr(s, "_tl_nerr", 0) != nerr:
+            s.statusBar().showMessage(f"{nerr} timeline step(s) failed to rebuild - they're marked red; hover one to see why.", 9000)
+        s._tl_nerr = nerr
+
+    # ---- menus ----
+    def tl_step_menu(s, m, i):
+        v = s.vp; op = v.states[i].get("op") or {}
+        m.addAction("Rename...", lambda: s.tl_rename(i))
+        m.addAction("Unsuppress" if op.get("suppressed") else "Suppress", lambda: s.tl_suppress(i, not op.get("suppressed")))
+        m.addSeparator()
+        a = m.addAction("Move earlier", lambda: s.tl_move(i, i - 1)); a.setEnabled(i > 1)
+        a = m.addAction("Move later", lambda: s.tl_move(i, i + 1)); a.setEnabled(i < len(v.states) - 1)
+        m.addSeparator()
+        sel = sorted(s.tl_sel | {i})
+        g = v.group_of(i)
+        if g: m.addAction(f"Remove folder '{g['name']}'", lambda: s.tl_ungroup(g))
+        elif len(sel) > 1: m.addAction(f"Group {len(sel)} steps into a folder", lambda: s.tl_group(sel[0], sel[-1]))
+        else: m.addAction("Shift-click steps to select them for a folder").setEnabled(False)
+
+    def tl_group_menu(s, g, pt):
+        m = W.QMenu(s); m.addAction("Open folder", lambda: s.tl_toggle_group(g)); m.addAction("Rename folder...", lambda: s.tl_rename_group(g))
+        m.addAction("Suppress all", lambda: s.tl_suppress_range(g["a"], g["b"], True)); m.addAction("Unsuppress all", lambda: s.tl_suppress_range(g["a"], g["b"], False))
+        m.addSeparator(); m.addAction("Remove folder (keep the steps)", lambda: s.tl_ungroup(g)); m.exec(pt)
+
+    # ---- actions ----
+    def tl_run(s, title, fn):
+        v = s.vp
+        if s.busy(): return None
+        s.leave_sketch()
+        try:
+            W.QApplication.setOverrideCursor(C.Qt.WaitCursor); fails = fn() or []
+            if fails: s.statusBar().showMessage(f"{title}: {len(fails)} later step(s) couldn't be rebuilt - shown in red.", 9000)
+            else: s.statusBar().showMessage(f"{title}: done.", 5000)
+            return fails
+        except Exception as ex: traceback.print_exc(); W.QMessageBox.warning(s, title, str(ex))
+        finally: W.QApplication.restoreOverrideCursor(); s.tl_sel = set(); s._tl_key = None; s.refresh(); v.update()
+
+    def tl_suppress(s, i, on): return s.tl_run("Suppress" if on else "Unsuppress", lambda: s.vp.set_suppressed(i, on))
+    def tl_suppress_range(s, a, b, on):
+        def go():
+            v = s.vp; ops = [x["op"] for x in v.states]
+            for j in range(a, b + 1):
+                if ops[j] is None: continue
+                o = dict(ops[j]); o.pop("suppressed", None)
+                if on: o["suppressed"] = True
+                ops[j] = o
+            return v.replay_ops(a, ops, [x["kind"] for x in v.states], v.pos)
+        return s.tl_run("Suppress" if on else "Unsuppress", go)
+    def tl_move(s, i, k): return s.tl_run("Move step", lambda: s.vp.move_step(i, k))
+    def tl_rename(s, i, name=None):
+        if name is None:
+            name, ok = W.QInputDialog.getText(s, "Rename step", "Name:", text=s.tl_name(i))
+            if not ok: return
+        s.vp.rename_step(i, name.strip()); s._tl_key = None; s.rebuild_timeline()
+
+    def tl_toggle_sel(s, i):
+        s.tl_sel ^= {i}; s.rebuild_timeline()
+    def tl_group(s, a, b, name=None):
+        v = s.vp
+        if a > b: a, b = b, a
+        if any(not (g["b"] < a or g["a"] > b) for g in v.tl_groups): return s.statusBar().showMessage("Those steps overlap an existing folder.", 5000)
+        v.tl_groups.append({"name": name or f"Folder{len(v.tl_groups) + 1}", "a": a, "b": b, "open": False})
+        s.tl_sel = set(); s._tl_key = None; s.rebuild_timeline()
+    def tl_ungroup(s, g):
+        s.vp.tl_groups = [x for x in s.vp.tl_groups if x is not g]; s._tl_key = None; s.rebuild_timeline()
+    def tl_toggle_group(s, g):
+        g["open"] = not g.get("open"); s._tl_key = None; s.rebuild_timeline()
+    def tl_rename_group(s, g, name=None):
+        if name is None:
+            name, ok = W.QInputDialog.getText(s, "Rename folder", "Name:", text=g["name"])
+            if not ok: return
+        g["name"] = name.strip() or g["name"]; s._tl_key = None; s.rebuild_timeline()
+
+    # ---- drag & drop ----
+    def tl_slots(s):
+        """[(x position of the gap before step j, j)] for every visible step button, plus the end."""
+        out = [(w.geometry().left() - 1, j) for j, w in s.tl_btns]
+        if s.tl_btns: out.append((s.tl_btns[-1][1].geometry().right() + 2, len(s.vp.states)))
+        return out
+    def tl_slot_x(s, x):
+        sl = s.tl_slots()
+        return min(sl, key=lambda q: abs(q[0] - x))[0] if sl else x
+    def tl_drop(s, i, x):
+        sl = s.tl_slots()
+        if not sl: return
+        j = min(sl, key=lambda q: abs(q[0] - x))[1]                # dropped into the gap before step j
+        k = j if j < i else j - 1
+        if k != i and k >= 1: s.tl_move(i, k)
+
+    def build_timeline(s):
+        bar = W.QFrame(); bar.setObjectName("timeline"); bar.setFixedHeight(48)
+        h = W.QHBoxLayout(bar); h.setContentsMargins(10, 4, 10, 4); h.setSpacing(0); s.tlb = {}
+        for ic, tip, fn in (("first", "Go to the beginning", lambda: s.goto(0)), ("prev", "Step back (Ctrl+Z)", s.undo),
+                            ("play", "Play the history", s.play), ("next", "Step forward (Ctrl+Y)", s.redo),
+                            ("last", "Go to the end", lambda: s.goto(len(s.vp.states) - 1))):
+            b = s.tbtn("tlbtn", ic, size=18, tip=tip); b.setFixedSize(30, 30); b.clicked.connect(fn); h.addWidget(b); s.tlb[ic] = b
+        h.addSpacing(12)
+        sa = W.QScrollArea(); sa.setWidgetResizable(True); sa.setFrameShape(W.QFrame.NoFrame)
+        sa.setVerticalScrollBarPolicy(C.Qt.ScrollBarAlwaysOff); sa.setStyleSheet("QScrollArea{background:transparent;border:none}")
+        sa.viewport().setStyleSheet("background:transparent"); inner = TLStrip(s); s.tl = W.QHBoxLayout(inner); s.tl.setContentsMargins(0, 0, 0, 0); s.tl.setSpacing(3)
+        sa.setWidget(inner); h.addWidget(sa, 1); s.tl_scroll = sa; s.tl_strip = inner; s.tl_btns = []
+        return bar
+
+
+class ExprSpinMixin:
+    """Number boxes in the command panels also take expressions: parameter names, other dimensions' names and maths
+    (width/2 + 3 mm). The expression is kept with the feature and re-evaluated whenever the design rebuilds."""
+    def expr_setup(s, form, key, kind):
+        s.form_, s.key_, s.kind_ = form, key, kind
+        s.setToolTip("Type a value, or an expression using parameter names: width/2, d1 + 3 mm, 2*pi*r")
+        s.valueChanged.connect(s._drop_stale)
+    def _drop_stale(s, v):
+        x = s.exprs().get(s.key_)
+        if not x: return
+        try: ok = abs(eval_expr(x[0], s.env_(), x[1]) - v) < 1e-9
+        except Exception: ok = False
+        if not ok: s.exprs().pop(s.key_, None)
+    def exprs(s): return s.form_.vals.setdefault("_x", {})
+    def env_(s):
+        try: return s.form_.app.vp.dim_env()
+        except Exception: return {}
+    def _plain(s, text):
+        t = text.replace("°", "").replace(s.suffix(), "").strip() if s.suffix() else text.replace("°", "").strip()
+        return t
+    def eval_text(s, text):
+        t = s._plain(text)
+        if not expr_names(t):
+            try: return s.base_value(t), False
+            except Exception: pass
+        return eval_expr(t, s.env_(), s.kind_), bool(expr_names(t))
+    def base_value(s, t):
+        if s.kind_ == "len": return parse_len(t)
+        return float(eval_expr(t, {}, "ang"))
+    def valueFromText(s, text):
+        try:
+            v, is_expr = s.eval_text(text)
+            if is_expr: s.exprs()[s.key_] = [s._plain(text), s.kind_]
+            else: s.exprs().pop(s.key_, None)
+            return v
+        except Exception: return s.value()
+    def validate(s, text, pos):
+        try: s.eval_text(text); return G.QValidator.State.Acceptable
+        except Exception: return G.QValidator.State.Intermediate
+    def textFromValue(s, v):
+        x = s.exprs().get(s.key_) if hasattr(s, "form_") else None
+        if x:
+            try:
+                if abs(eval_expr(x[0], s.env_(), x[1]) - v) < 1e-9: return x[0]
+            except Exception: pass
+        return s.base_text(v)
+    def fixup(s, text): return s.textFromValue(s.value())
+
+class ExprLenSpin(ExprSpinMixin, LengthSpin):
+    def base_text(s, v): return LengthSpin.textFromValue(s, v)
+
+class ExprNumSpin(ExprSpinMixin, W.QDoubleSpinBox):
+    def base_text(s, v): return W.QDoubleSpinBox.textFromValue(s, v)
 
 # ---------------------------------------------------------------------------------------------------------------
 #  Command framework: every Create / Modify / Construct tool is a list of fields; one floating panel renders it,
@@ -8401,7 +12415,10 @@ class Cmd:
                 if k == "bodies": op[k] = sorted({r[1] for r in val if r[0] == "body"}); continue
                 op[k] = val if f["multi"] else (val[0] if val else None)
             else: op[k] = v[k]
-        return s._build(v, op, vp) if s._build else op
+        x = {k: list(e) for k, e in (v.get("_x") or {}).items() if any(f["key"] == k for f in s.fields)}
+        out = s._build(v, op, vp) if s._build else op
+        if x and isinstance(out, dict): out["_x"] = x
+        return out
 
     def load(s, op, vp):
         v = {}
@@ -8412,6 +12429,7 @@ class Cmd:
                 if k == "bodies": v[k] = [("body", i) for i in (x or [])]
                 else: v[k] = list(x) if isinstance(x, list) else ([x] if x else [])
             else: v[k] = op.get(k, f["default"])
+        v["_x"] = {k: list(e) for k, e in (op.get("_x") or {}).items()}
         return s._load(op, v, vp) if s._load else v
 
 def construct_cmd(how, title, fields, icon):
@@ -8763,14 +12781,1373 @@ def make_sketch_commands():
         c._build = b
     return out
 
+
+# ---- SURFACE workspace commands ----
+SURF_OPS = ("s_extrude", "s_revolve", "s_sweep", "s_loft", "patch", "ruled", "s_offset", "trim", "untrim", "s_extend", "stitch",
+            "unstitch", "revnormal", "s_delface")
+CURVES = {"profile", "curve", "edge"}
+
+def _first_edge(v, vp, key):
+    r = (v.get(key) or [None])[0]
+    if not r or r[0] != "edge": return None
+    b = vp.bodies[r[1]]; e = b.eds[r[2]]; fs = faces_of_edge_in(b.shape, e)
+    return e, (fs[0] if fs else None)
+
+def s_ext_handle(v, vp):
+    if not v.get("profiles"): return None
+    try:
+        r = v["profiles"][0]; n = vp.surf_dir(v["profiles"], (v.get("dirref") or [None])[0], v.get("chain", True))
+        o = centroid(vp.ref_face(r)) if r[0] == "profile" else vp.ref_point(r)
+        return o, n, "d"
+    except Exception: return None
+
+def s_offset_handle(v, vp):
+    r = (v.get("faces") or [None])[0]
+    if not r: return None
+    try:
+        f = vp.bodies[r[1]].faces[0] if r[0] == "body" else vp.ref_face(r)
+        p, n = normal_at(f, V(*r[3]) if len(r) > 3 else centroid(f)); return p, n, "d"
+    except Exception: return None
+
+def s_edge_handle(v, vp, key="edges"):
+    try:
+        x = _first_edge(v, vp, key)
+        if not x or x[1] is None: return None
+        e, f = x; p = _emid(e); out, n = _outward_dir(f, e, p)
+        if v.get("kind") in ("normal", "perpendicular"): out = n
+        if v.get("flip"): out = -out
+        if v.get("kind") == "direction": return None
+        return p, out, "d"
+    except Exception: return None
+
+def make_surface_commands():
+    out = {}
+    def add(c): c.group = "SURFACE"; out[c.name] = c
+    two = lambda v: v["dir"] == "two"
+    chain = lambda: Fcheck("chain", "Chain selection", True)
+    add(Cmd("s_extrude", "EXTRUDE (SURFACE)", "sextrude", [
+        Fsel("profiles", "Profiles / curves", CURVES, True), chain(),
+        Fsel("dirref", "Direction", {"plane", "axis"}, req=False),
+        Fcombo("dir", "Direction", "one", SIDES), Flen("d", "Distance", 10.0),
+        Flen("d2", "Side 2 distance", 5.0, show=two), Fang("taper", "Taper angle", 0.0, -89, 89)],
+        hint="Pick sketch curves, profiles or model edges - they're pulled into an open surface (no end caps). "
+             "Edges that aren't flat need a direction. Drag the arrow or type a distance.", handle=s_ext_handle))
+    add(Cmd("s_revolve", "REVOLVE (SURFACE)", "srevolve", [
+        Fsel("profiles", "Profiles / curves", CURVES, True), Fsel("axis", "Axis", AXES), chain(),
+        Fcombo("extent", "Type", "full", [("Full (360°)", "full"), ("Angle", "angle")]),
+        Fang("angle", "Angle", 180.0, show=lambda v: v["extent"] == "angle")],
+        hint="Spins curves round an axis into a surface of revolution."))
+    add(Cmd("s_sweep", "SWEEP (SURFACE)", "ssweep", [
+        Fsel("profiles", "Profile curves", CURVES, True), Fsel("path", "Path", PATHS, True), chain(),
+        Fcombo("orient", "Orientation", "perp", [("Perpendicular", "perp"), ("Parallel", "parallel")])],
+        hint="Drags a curve along a path. The profile should start at the path's beginning."))
+    add(Cmd("s_loft", "LOFT (SURFACE)", "sloft", [
+        Fsel("sections", "Sections", CURVES | POINTS, True), chain(),
+        Fcheck("closed", "Closed (back to the first section)"), Fcheck("ruled", "Straight (ruled) between sections")],
+        hint="Pick open or closed curves (or edges) in order; a point can start or end the loft."))
+    add(Cmd("patch", "PATCH", "patch", [
+        Fsel("boundary", "Boundary", {"curve", "edge"}, True), chain(),
+        Fcombo("cont", "Continuity", "G0", [("Connected (G0)", "G0"), ("Tangent (G1)", "G1"), ("Curvature (G2)", "G2")]),
+        Fsel("points", "Points to pass through", POINTS, True, req=False)],
+        hint="Fills a closed loop of curves or open surface edges (one edge picks its whole loop). Tangent / curvature "
+             "blend into the surfaces the edges belong to."))
+    add(Cmd("ruled", "RULED SURFACE", "ruled", [
+        Fsel("edges", "Edges", {"edge", "curve"}, True), Fcheck("chain", "Tangent chain", False),
+        Fcombo("kind", "Type", "tangent", [("Tangent", "tangent"), ("Normal", "normal"), ("Direction", "direction")]),
+        Fsel("dirref", "Direction", {"plane", "axis"}, show=lambda v: v["kind"] == "direction"),
+        Flen("d", "Distance", 10.0), Fang("ang", "Angle", 0.0, -180, 180), Fcheck("flip", "Flip")],
+        hint="A strip hanging off edges: carrying on along the surface (tangent), standing up from it (normal) or in a fixed direction.",
+        handle=s_edge_handle))
+    add(Cmd("s_offset", "OFFSET (SURFACE)", "soffset", [
+        Fsel("faces", "Faces", {"face", "body"}, True), Flen("d", "Distance", 2.0)],
+        hint="A new surface a set distance from faces (negative goes the other way).", handle=s_offset_handle))
+    add(Cmd("trim", "TRIM", "trim3d", [
+        Fsel("tool", "Trimming tool", {"body", "face", "plane", "curve"}), Fsel("remove", "Areas to remove", {"spot"}, True)],
+        hint="Pick the tool (a surface, face, plane or sketch curve), then click each part of the surfaces to cut away. "
+             "Click parts of the tool surface too to trim it back."))
+    add(Cmd("untrim", "UNTRIM", "untrim", [
+        Fsel("faces", "Faces", {"face", "body"}, True),
+        Fcombo("mode", "Type", "loops", [("Fill holes", "loops"), ("Back to the natural boundary", "all")]),
+        Flen("ext", "Extend flat / open faces by", 10.0, 0.0, show=lambda v: v["mode"] == "all")],
+        hint="Removes the trimming from surface faces: holes close, or the face grows back to its full surface."))
+    add(Cmd("s_extend", "EXTEND", "sextend", [
+        Fsel("edges", "Edges", {"edge"}, True), Fcheck("chain", "Tangent chain", True), Flen("d", "Distance", 10.0),
+        Fcombo("kind", "Type", "natural", [("Natural", "natural"), ("Tangent", "tangent"), ("Perpendicular", "perpendicular")])],
+        hint="Grows a surface past its open edges.", handle=s_edge_handle))
+    add(Cmd("stitch", "STITCH", "stitch", [
+        Fsel("sbodies", "Surfaces", {"body"}, True), Flen("tol", "Tolerance", 0.01, 1e-6, 100.0)],
+        hint="Joins surfaces along edges that touch. A fully closed result becomes a solid body."))
+    add(Cmd("unstitch", "UNSTITCH", "unstitch", [Fsel("faces", "Faces / bodies", {"face", "body"}, True)],
+        hint="Breaks faces off into their own surface bodies (a whole body splits into one body per face)."))
+    add(Cmd("revnormal", "REVERSE NORMAL", "revnormal", [Fsel("targets", "Surfaces / faces", {"body", "face"}, True)],
+        hint="Flips which side of a surface is the front (the back shows tinted)."))
+    add(Cmd("s_delface", "DELETE FACE", "sdelete", [Fsel("faces", "Faces", {"face"}, True)],
+        hint="Removes faces and leaves the hole open - a solid becomes a surface body. (Delete Faces in Solid heals the gap instead.)"))
+    return out
+
+
+# ---- Inspect commands (analyses live in the browser's Analysis folder, not the timeline) ----
+def make_inspect_commands():
+    out = {}
+    def add(c): c.group = "INSPECT"; out[c.name] = c
+    add(Cmd("section", "SECTION ANALYSIS", "section", [
+        Fsel("plane", "Plane", PLANES), Flen("d", "Offset", 0.0), Fcheck("flip", "Flip (show the other side)"),
+        Fcheck("hatch", "Hatch the cut faces", True)],
+        hint="Cuts the view along a plane or flat face so you can see inside. Drag the arrow or type an offset. "
+             "It stays in the browser (Analysis) - untick it to hide, right-click to edit.", handle=plane_offset_handle))
+    add(Cmd("zebra", "ZEBRA ANALYSIS", "zebra", [Fsel("bodies", "Bodies (none = all)", {"body"}, True, req=False)],
+        hint="Reflected stripes show how smoothly faces meet: stripes that stay continuous across an edge = tangent / curvature continuous."))
+    add(Cmd("draftan", "DRAFT ANALYSIS", "draftan", [
+        Fsel("dir", "Pull direction", PLANES | AXES), Fang("angle", "Draft angle needed", 1.0, 0.0, 89.0), Fcheck("flip", "Flip direction"),
+        Fsel("bodies", "Bodies (none = all)", {"body"}, True, req=False)],
+        hint="Green = enough positive draft, red = enough negative draft, yellow = not enough to release from a mould."))
+    add(Cmd("curvmap", "CURVATURE MAP", "curvmap", [
+        Fsel("bodies", "Bodies (none = all)", {"body"}, True, req=False), Fnum("max", "Red at curvature (1/mm, 0 = auto)", 0.0, 0.0, 100.0, 4)],
+        hint="Colours faces by how tightly they curve: blue = flat, red = sharpest."))
+    add(Cmd("comb", "CURVATURE COMB", "comb", [
+        Fsel("edges", "Edges / sketch curves", {"edge", "curve"}, True), Fnum("scale", "Comb size", 1.0, 0.05, 20.0, 2)],
+        hint="Spikes show curvature along a curve: longer = tighter; smooth comb ends = smooth joins."))
+    add(Cmd("interference", "INTERFERENCE", "interference", [Fsel("bodies", "Bodies (none = all)", {"body"}, True, req=False)],
+        hint="Finds where solid bodies overlap. Overlaps show red; the list says how much."))
+    return out
+
+class MeasurePanel(W.QFrame):
+    def __init__(s, win):
+        super().__init__(win.vp); s.win, s.vp = win, win.vp
+        s.setObjectName("cmd"); s.setFixedWidth(330)
+        lay = W.QVBoxLayout(s); lay.setContentsMargins(0, 0, 0, 0); lay.setSpacing(0)
+        hd = W.QLabel("MEASURE"); hd.setObjectName("cmdhdr"); lay.addWidget(hd)
+        body = W.QWidget(); bl = W.QVBoxLayout(body); bl.setContentsMargins(12, 10, 12, 8); bl.setSpacing(7); lay.addWidget(body)
+        form = W.QFormLayout(); form.setHorizontalSpacing(10); bl.addLayout(form)
+        s.kind = W.QComboBox(); s.kind.addItem("Faces, edges, vertices", "geom"); s.kind.addItem("Bodies", "body")
+        s.dist = W.QComboBox(); s.dist.addItem("Minimum distance", "min"); s.dist.addItem("Centre to centre", "centre"); s.dist.addItem("Maximum distance", "max")
+        s.prec = W.QSpinBox(); s.prec.setRange(0, 6); s.prec.setValue(2)
+        form.addRow("Select", s.kind); form.addRow("Distance", s.dist); form.addRow("Precision", s.prec)
+        s.out = W.QLabel(); s.out.setWordWrap(True); s.out.setTextInteractionFlags(C.Qt.TextSelectableByMouse)
+        s.out.setStyleSheet("background:white;border:1px solid #d6d6d6;padding:8px;color:#222"); s.out.setMinimumHeight(90); bl.addWidget(s.out)
+        h = W.QLabel("Click one item for its size, two for the distance and angle between them. A third click starts again.")
+        h.setObjectName("hint"); h.setWordWrap(True); bl.addWidget(h)
+        row = W.QHBoxLayout(); row.setContentsMargins(12, 0, 12, 10); row.addStretch(1)
+        rs, cl = W.QPushButton("Restart"), W.QPushButton("Close"); cl.setObjectName("primary"); row.addWidget(rs); row.addWidget(cl); lay.addLayout(row)
+        rs.clicked.connect(s.restart); cl.clicked.connect(win.measure_stop)
+        for w_ in (s.kind, s.dist): w_.currentIndexChanged.connect(s.changed)
+        s.prec.valueChanged.connect(s.changed)
+        s.move(16, 16); s.show(); s.raise_(); s.render_out()
+    def changed(s, *_):
+        m = s.vp.meas
+        if m is None: return
+        if m.get("kind") != s.kind.currentData(): m["picks"] = []
+        m.update(kind=s.kind.currentData(), dist=s.dist.currentData(), prec=s.prec.value()); s.vp.meas_compute()
+    def restart(s): s.vp.meas["picks"] = []; s.vp.meas_compute()
+    def render_out(s):
+        m = s.vp.meas
+        if m is None: return
+        P = m["picks"]
+        names = {"vertex": "Vertex", "edge": "Edge", "face": "Face", "body": "Body", "curve": "Sketch curve", "spoint": "Sketch point", "origin": "Origin", "cpoint": "Point"}
+        lines = [f"<b>Selection {i + 1}:</b> {names.get(r[0], r[0])}" for i, r in enumerate(P)] or ["<i>Click something to measure.</i>"]
+        prec = m.get("prec", 2)
+        def rp(t): return re.sub(r"-?\d+\.\d+", lambda q: fmt(float(q.group(0)), prec), t)
+        for k, v in m.get("out", []): lines.append(f"<b>{k}</b>&nbsp;&nbsp;{rp(v)}" if k else f"<span style='color:#b3261e'>{v}</span>")
+        s.out.setText("<br>".join(lines))
+
+class InspectWin:
+    # ---------------- actions / menus ----------------
+    def make_inspect_actions(s, act):
+        A = {}
+        A["measure"] = act("Measure", "I", s.measure_start, "measure", "Distance, angle, length, area, volume and coordinates.")
+        A["section"] = act("Section Analysis", None, lambda: s.open_cmd("section"), "section")
+        A["interference"] = act("Interference", None, lambda: s.open_cmd("interference"), "interference")
+        A["zebra"] = act("Zebra Analysis", None, lambda: s.open_cmd("zebra"), "zebra")
+        A["draftan"] = act("Draft Analysis", None, lambda: s.open_cmd("draftan"), "draftan")
+        A["curvmap"] = act("Curvature Map Analysis", None, lambda: s.open_cmd("curvmap"), "curvmap")
+        A["comb"] = act("Curvature Comb Analysis", None, lambda: s.open_cmd("comb"), "comb")
+        A["com"] = act("Center of Mass", None, s.toggle_com, "com"); A["com"].setCheckable(True)
+        A["props"] = act("Properties", None, s.properties_dialog, "props", "Mass, volume, area, centre of mass, inertia.")
+        A["clear_ana"] = act("Hide All Analyses", None, s.clear_analyses, "eyeoff")
+        A["selfilter"] = act("Selection Filters", None, lambda: None, "selfilter")
+        fm = W.QMenu(s)
+        s.filter_acts = {}
+        for key, label in (("bodies", "Bodies"), ("faces", "Faces"), ("edges", "Edges"), ("profiles", "Sketch profiles")):
+            a = fm.addAction(label); a.setCheckable(True); a.setChecked(True); a.toggled.connect(lambda on, k=key: s.set_filter(k, on)); s.filter_acts[key] = a
+        fm.addSeparator(); fm.addAction("Select all", lambda: [a.setChecked(True) for a in s.filter_acts.values()])
+        A["selfilter"].setMenu(fm); A["selfilter"].triggered.connect(lambda: fm.exec(G.QCursor.pos()))
+        A["selall"] = act("Select All Bodies", "Ctrl+A", s.select_all_bodies, "body")
+        A["window"] = act("Window Selection (drag on empty space)", None, lambda: s.statusBar().showMessage(
+            "Drag on empty space: left-to-right picks what is fully inside, right-to-left what the box touches. Ctrl / Shift adds.", 8000), "selwin")
+        A["search"] = act("Command Search", "Ctrl+K", s.focus_search, "search")
+        return A
+
+    def inspect_groups(s, A):
+        menu = [A["measure"], A["interference"], A["comb"], A["zebra"], A["draftan"], A["curvmap"], A["section"], None, A["com"], A["props"], None, A["clear_ana"]]
+        sel = [A["selfilter"], A["selall"], A["window"]]
+        return [("INSPECT", (A["measure"], A["section"], A["interference"]), menu), ("SELECT", (A["selfilter"],), sel)]
+
+    def set_filter(s, key, on):
+        f = s.vp.sel_filter
+        if on: f.add(key)
+        else: f.discard(key)
+        if not f: s.filter_acts[key].setChecked(True); return
+        s.statusBar().showMessage("Selecting: " + ", ".join(sorted(f)), 4000)
+
+    def select_all_bodies(s):
+        v = s.vp
+        if v.skedit or v.cmd: return
+        v.msel = {i for i, b in enumerate(v.bodies) if b.visible and getattr(b, "selectable", True)}
+        v.sel_body = min(v.msel) if v.msel else None; v.sel.clear(); v.sel_face = None; v.update(); s.refresh()
+
+    # ---------------- measure ----------------
+    def measure_start(s):
+        v = s.vp
+        if v.cmd: s.cmd_cancel()
+        if v.skedit: v.sk_set_tool(None)
+        if v.meas is not None: return
+        v.meas = dict(picks=[], kind="geom", dist="min", prec=2, out=[])
+        s.meas_panel = MeasurePanel(s); v.meas_cb = s.meas_panel.render_out; v.setFocus(); v.update()
+        s.statusBar().showMessage("Measure: click faces, edges or vertices. Esc to finish.", 6000)
+    def measure_stop(s):
+        v = s.vp; v.meas = None; v.meas_cb = None; v.cmd_hover = None
+        if getattr(s, "meas_panel", None): s.meas_panel.hide(); s.meas_panel.deleteLater(); s.meas_panel = None
+        v.update()
+
+    # ---------------- analyses ----------------
+    def analysis_ok(s, op, edit_index=None):
+        v = s.vp; v.ana_prev = None
+        if op["t"] == "interference": return s.interference_report(op)
+        a = {k: x for k, x in op.items() if k != "icon"}; a["visible"] = True
+        if a["t"] in ("zebra", "draftan", "curvmap", "interference") and isinstance(a.get("bodies"), list): pass
+        ed = getattr(s, "_ana_edit", None); s._ana_edit = None
+        if ed is not None and ed < len(v.analyses): a["name"] = v.analyses[ed].get("name"); v.analyses[ed] = a
+        else:
+            n = sum(1 for x in v.analyses if x["t"] == a["t"]) + 1; a["name"] = f"{ANA_NAMES.get(a['t'], a['t'])}{n}"; v.analyses.append(a)
+        v._anacache = {k: x for k, x in v._anacache.items() if k[0] in ("props",)}; v.update(); s.refresh()
+
+    def interference_report(s, op):
+        v = s.vp; ids = op.get("bodies") or [i for i, b in enumerate(v.bodies) if b.visible]
+        W.QApplication.setOverrideCursor(C.Qt.WaitCursor)
+        try: res = v.interference(ids)
+        finally: W.QApplication.restoreOverrideCursor()
+        v.interf = []
+        for i, j, sh, vol in res:
+            try: v.interf.append(Body(sh))
+            except Exception: pass
+        v.update()
+        dlg = W.QDialog(s); dlg.setWindowTitle("Interference"); dlg.resize(460, 300); lay = W.QVBoxLayout(dlg)
+        if not res: lay.addWidget(W.QLabel(f"No interference between the {len(ids)} bodies checked."))
+        else:
+            lay.addWidget(W.QLabel(f"{len(res)} overlap(s) found - shown in red in the view."))
+            tab = W.QTableWidget(len(res), 3); tab.setHorizontalHeaderLabels(["Body", "Body", "Overlap volume"])
+            for r, (i, j, sh, vol) in enumerate(res):
+                for c, t in enumerate((v.body_name(i), v.body_name(j), fvol(vol))): tab.setItem(r, c, W.QTableWidgetItem(t))
+            tab.horizontalHeader().setStretchLastSection(True); tab.verticalHeader().hide(); lay.addWidget(tab)
+        bb = W.QDialogButtonBox(W.QDialogButtonBox.Close); bb.rejected.connect(dlg.reject); bb.accepted.connect(dlg.accept); lay.addWidget(bb)
+        dlg.exec(); v.interf = []; v.update()
+
+    def clear_analyses(s):
+        v = s.vp
+        for a in v.analyses: a["visible"] = False
+        v.com_marks = False; v.interf = []
+        if "com" in getattr(s, "IA", {}): s.IA["com"].setChecked(False)
+        v.update(); s.refresh()
+
+    def toggle_com(s):
+        v = s.vp; v.com_marks = not v.com_marks; s.IA["com"].setChecked(v.com_marks); v.update()
+
+    def properties_dialog(s):
+        v = s.vp
+        if not v.bodies: return s.statusBar().showMessage("There are no bodies to inspect.", 5000)
+        dlg = W.QDialog(s); dlg.setWindowTitle("Properties"); dlg.resize(470, 520); lay = W.QVBoxLayout(dlg)
+        pick = W.QComboBox()
+        for i, b in enumerate(v.bodies): pick.addItem(v.body_name(i), i)
+        if v.sel_body is not None and v.sel_body < len(v.bodies): pick.setCurrentIndex(v.sel_body)
+        lay.addWidget(pick); tab = W.QTableWidget(0, 2); tab.setHorizontalHeaderLabels(["Property", "Value"])
+        tab.horizontalHeader().setStretchLastSection(True); tab.verticalHeader().hide(); tab.setEditTriggers(W.QAbstractItemView.NoEditTriggers); lay.addWidget(tab)
+        def fill():
+            b = v.bodies[pick.currentData()]; pr = v.body_props(b); rows = []
+            rows.append(("Type", "Surface body" if getattr(b, "surface", False) else "Solid body"))
+            rows.append(("Material", b.material or "none (set one with Physical Material)"))
+            if pr["density"]: rows.append(("Density", f"{fmt(pr['density'], 3)} g/cm³"))
+            if pr["mass"] is not None: rows.append(("Mass", f"{fmt(pr['mass'], 3)} g"))
+            rows += [("Volume", fvol(pr["volume"])), ("Area", farea(pr["area"]))]
+            d = pr["hi"] - pr["lo"]; rows.append(("Bounding box", f"{flen(d.x)} × {flen(d.y)} × {flen(d.z)}"))
+            c = pr["com"]; rows.append(("Center of mass", f"{flen(c.x)}, {flen(c.y)}, {flen(c.z)}"))
+            if pr.get("inertia") and not getattr(b, "surface", False):
+                u = "g·mm²" if pr["density"] else "mm⁵ (no material)"
+                rows.append(("Principal moments", ", ".join(fmt(x, 1) for x in pr["inertia"]) + f"  {u}"))
+                M = pr["inertia_matrix"]
+                for nm, (i, j) in (("Ixx", (0, 0)), ("Iyy", (1, 1)), ("Izz", (2, 2)), ("Ixy", (0, 1)), ("Iyz", (1, 2)), ("Ixz", (0, 2))):
+                    rows.append((f"{nm} (about centre of mass)", f"{fmt(M[i][j], 1)} {u}"))
+            tab.setRowCount(len(rows))
+            for r, (k, x) in enumerate(rows): tab.setItem(r, 0, W.QTableWidgetItem(k)); tab.setItem(r, 1, W.QTableWidgetItem(x))
+            tab.resizeColumnToContents(0)
+        pick.currentIndexChanged.connect(lambda _: fill()); fill()
+        bb = W.QDialogButtonBox(W.QDialogButtonBox.Close); copy = bb.addButton("Copy", W.QDialogButtonBox.ActionRole)
+        copy.clicked.connect(lambda: W.QApplication.clipboard().setText("\n".join(f"{tab.item(r, 0).text()}\t{tab.item(r, 1).text()}" for r in range(tab.rowCount()))))
+        bb.rejected.connect(dlg.reject); lay.addWidget(bb); dlg.exec()
+
+    # ---------------- browser ----------------
+    def insp_browser(s, root, item, folders):
+        v = s.vp
+        org = item(root, "Origin", "folder", "grp:or", any(v.origin_vis.values()))
+        for k, nm in (("XY", "XY plane (ground)"), ("XZ", "XZ plane (front)"), ("YZ", "YZ plane (right)"), ("axes", "Axes")):
+            item(org, nm, "cplane" if k != "axes" else "caxis", f"or:{k}", v.origin_vis[k])
+        if v.analyses:
+            an = item(root, "Analysis", "folder", "grp:an", any(a.get("visible", True) for a in v.analyses)); folders.append(an)
+            for i, a in enumerate(v.analyses):
+                it = item(an, a.get("name") or ANA_NAMES.get(a["t"], a["t"]), a["t"], f"an:{i}", a.get("visible", True))
+                it.setToolTip(0, "Untick to hide · right-click to edit or delete")
+        if v.views:
+            nv = item(root, "Named Views", "folder", "grp:nv", True); folders.append(nv)
+            for name in v.views: item(nv, name, "view", f"nv:{name}", True).setToolTip(0, "Click to go to this view · right-click for more")
+
+    def insp_vis(s, ref, on):
+        v = s.vp
+        if ref == "grp:or" or ref.startswith("or:"):
+            for k in (list(v.origin_vis) if ref == "grp:or" else [ref[3:]]): v.origin_vis[k] = on
+        elif ref == "grp:an" or ref.startswith("an:"):
+            for i in (range(len(v.analyses)) if ref == "grp:an" else [int(ref[3:])]): v.analyses[i]["visible"] = on
+        elif ref == "grp:nv" or ref.startswith("nv:"): pass
+        else: return False
+        v.update(); C.QTimer.singleShot(0, s.refresh); return True
+
+    def insp_click(s, ref):
+        if ref.startswith("nv:") and ref[3:] in s.vp.views: s.vp.go_cam(s.vp.views[ref[3:]]); return True
+        return False
+
+    def insp_browser_menu(s, m, ref):
+        v = s.vp
+        if ref.startswith("bd:"):
+            bi = int(ref[3:]); b = v.bodies[bi]
+            m.addAction("Rename...", lambda: s.rename_body(bi)); m.addAction("Properties", lambda: (setattr(v, "sel_body", bi), s.properties_dialog()))
+            m.addSeparator(); m.addAction("Isolate", lambda: s.isolate(bi)); m.addAction("Show All Bodies", s.unisolate)
+            op = m.addMenu("Opacity")
+            for pc in (100, 75, 50, 25, 10):
+                a = op.addAction(f"{pc}%"); a.setCheckable(True); a.setChecked(abs(getattr(b, "opacity", 1.0)*100 - pc) < 1)
+                a.triggered.connect(lambda _=False, pc=pc: s.set_opacity(bi, pc/100))
+            a = m.addAction("Selectable"); a.setCheckable(True); a.setChecked(getattr(b, "selectable", True))
+            a.triggered.connect(lambda on: s.set_selectable(bi, on))
+            m.addSeparator(); m.addAction("Delete", lambda: (setattr(v, "sel_body", bi), v.msel.clear(), s.delete_selected()))
+            return True
+        if ref.startswith("an:"):
+            i = int(ref[3:])
+            m.addAction("Edit...", lambda: s.edit_analysis(i)); m.addAction("Delete", lambda: s.delete_analysis(i)); return True
+        if ref.startswith("nv:"):
+            name = ref[3:]
+            m.addAction("Go to view", lambda: v.go_cam(v.views[name])); m.addAction("Update to current view", lambda: s.save_view(name))
+            m.addAction("Rename...", lambda: s.rename_view(name)); m.addAction("Delete", lambda: s.delete_view(name)); return True
+        if ref == "grp:nv": m.addAction("Save current view...", s.save_view_dialog); return True
+        return False
+
+    def edit_analysis(s, i):
+        v = s.vp; a = v.analyses[i]; s._ana_edit = i; s.open_cmd(a["t"], vals=COMMANDS[a["t"]].load(a, v))
+    def delete_analysis(s, i):
+        del s.vp.analyses[i]; s.vp.update(); s.refresh()
+
+    def rename_body(s, bi):
+        v = s.vp; cur = v.body_name(bi)
+        name, ok = W.QInputDialog.getText(s, "Rename body", "Name:", text=cur)
+        if ok and name.strip() and name.strip() != cur: s.run("Rename", {"t": "bodyname", "bi": bi, "name": name.strip(), "quiet": True}); s.refresh()
+    def isolate(s, bi):
+        for i, b in enumerate(s.vp.bodies): b.visible = i == bi
+        s.vp._edge_cache = None; s.vp.update(); s.refresh()
+    def unisolate(s):
+        for b in s.vp.bodies: b.visible = True
+        s.vp._edge_cache = None; s.vp.update(); s.refresh()
+    def set_opacity(s, bi, x):
+        s.vp.bodies[bi].opacity = x; s.vp.update()
+    def set_selectable(s, bi, on):
+        s.vp.bodies[bi].selectable = on; s.vp._edge_cache = None; s.vp.update()
+
+    # ---------------- views / display ----------------
+    def display_menu(s, m):
+        v = s.vp; m.clear()
+        vs = m.addMenu("Visual Style"); grp = G.QActionGroup(vs)
+        for label, key in VSTYLES:
+            a = vs.addAction(label); a.setCheckable(True); a.setChecked(v.vstyle == key); grp.addAction(a)
+            a.triggered.connect(lambda _=False, k=key: (setattr(v, "vstyle", k), v.update()))
+        cam = m.addMenu("Camera"); g2 = G.QActionGroup(cam)
+        for label, on in (("Perspective", False), ("Orthographic", True)):
+            a = cam.addAction(label); a.setCheckable(True); a.setChecked(v.ortho == on); g2.addAction(a)
+            a.triggered.connect(lambda _=False, on=on: (setattr(v, "ortho", on), v.update()))
+        m.addSeparator()
+        m.addAction("Look At (selected face or sketch)", lambda: v.look_at_selection() or s.statusBar().showMessage("Select a face first.", 4000))
+        m.addAction("Save Named View...", s.save_view_dialog)
+        m.addAction("Set Current View as Home", s.set_home); m.addAction("Reset Home", s.reset_home)
+        m.addSeparator()
+        org = m.addMenu("Origin")
+        for k, nm in (("XY", "XY plane"), ("XZ", "XZ plane"), ("YZ", "YZ plane"), ("axes", "Axes")):
+            a = org.addAction(nm); a.setCheckable(True); a.setChecked(v.origin_vis[k])
+            a.toggled.connect(lambda on, k=k: (v.origin_vis.__setitem__(k, on), v.update(), s.refresh()))
+
+    def cube_menu(s, gpos):
+        v = s.vp; m = W.QMenu(s)
+        m.addAction("Go Home", v.home); m.addSeparator()
+        for label, on in (("Perspective", False), ("Orthographic", True)):
+            a = m.addAction(label); a.setCheckable(True); a.setChecked(v.ortho == on)
+            a.triggered.connect(lambda _=False, on=on: (setattr(v, "ortho", on), v.update()))
+        m.addSeparator(); m.addAction("Set Current View as Home", s.set_home); m.addAction("Reset Home", s.reset_home)
+        m.addAction("Save Named View...", s.save_view_dialog); m.exec(gpos)
+
+    def set_home(s): s.vp.home_cam = s.vp.cam_state(); s.statusBar().showMessage("Home view set.", 4000)
+    def reset_home(s): s.vp.home_cam = None; s.statusBar().showMessage("Home view reset to the default.", 4000)
+    def save_view_dialog(s):
+        n = len(s.vp.views) + 1
+        name, ok = W.QInputDialog.getText(s, "Named view", "Name:", text=f"View{n}")
+        if ok and name.strip(): s.save_view(name.strip())
+    def save_view(s, name): s.vp.views[name] = s.vp.cam_state(); s.refresh()
+    def rename_view(s, name):
+        new, ok = W.QInputDialog.getText(s, "Rename view", "Name:", text=name)
+        if ok and new.strip() and new.strip() not in s.vp.views:
+            s.vp.views = {(new.strip() if k == name else k): x for k, x in s.vp.views.items()}; s.refresh()
+    def delete_view(s, name): s.vp.views.pop(name, None); s.refresh()
+
+    # ---------------- command search ----------------
+    def add_command_search(s):
+        h = getattr(s, "_topbar_h", None)
+        if h is None: return
+        s.search_box = W.QLineEdit(); s.search_box.setPlaceholderText("Search commands  (Ctrl+K)"); s.search_box.setFixedWidth(260)
+        s.search_box.setClearButtonEnabled(True)
+        idx = next((i for i in range(h.count()) if h.itemAt(i).spacerItem() is not None), h.count())
+        h.insertWidget(idx, s.search_box)
+        s._search_model = G.QStandardItemModel(s)
+        comp = W.QCompleter(s._search_model, s); comp.setCaseSensitivity(C.Qt.CaseInsensitive); comp.setFilterMode(C.Qt.MatchContains)
+        comp.setCompletionRole(C.Qt.DisplayRole); comp.setMaxVisibleItems(14); s.search_box.setCompleter(comp)
+        comp.activated[C.QModelIndex].connect(s.search_run)
+        s.search_box.returnPressed.connect(lambda: s.search_first())
+    def search_actions(s):
+        seen, out = set(), []
+        for a in s.findChildren(G.QAction):
+            t = a.text().replace("&", "").split("  (")[0].strip()
+            if not t or t in seen or a.isSeparator() or t.endswith("..") and len(t) < 4: continue
+            seen.add(t); out.append((t, a))
+        return sorted(out, key=lambda x: x[0].lower())
+    def focus_search(s):
+        if not getattr(s, "search_box", None): return
+        s._search_map = {}; s._search_model.clear()
+        for t, a in s.search_actions():
+            it = G.QStandardItem(a.icon(), t); s._search_model.appendRow(it); s._search_map[t] = a
+        s.search_box.setFocus(); s.search_box.selectAll()
+    def search_run(s, index):
+        t = index.data(); a = getattr(s, "_search_map", {}).get(t)
+        s.search_box.clear(); s.vp.setFocus()
+        if a: C.QTimer.singleShot(0, a.trigger)
+    def search_first(s):
+        q = s.search_box.text().strip().lower()
+        if not q: return
+        if not getattr(s, "_search_map", None): s.focus_search()
+        hits = [t for t in s._search_map if q in t.lower()]
+        if hits:
+            a = s._search_map[sorted(hits, key=lambda t: (not t.lower().startswith(q), len(t)))[0]]
+            s.search_box.clear(); s.vp.setFocus(); C.QTimer.singleShot(0, a.trigger)
+
+    # ---------------- preferences, recent files, autosave, new window ----------------
+    def settings(s): return C.QSettings("Fission", "Fission")
+    def load_prefs(s):
+        st_ = s.settings(); v = s.vp
+        v.nav_preset = st_.value("nav", "fission"); v.zoom_invert = st_.value("zoom_invert", "false") in (True, "true")
+        v.ortho = st_.value("ortho", "false") in (True, "true"); v.vstyle = st_.value("vstyle", "edges")
+        u = st_.value("units", "mm")
+        if u in ("mm", "in"): s.set_units(u)
+        return st_
+    def prefs_dialog(s):
+        st_ = s.settings(); v = s.vp
+        fields = [("units", "Default units", "combo", st_.value("units", "mm"), [("Millimetres", "mm"), ("Inches", "in")]),
+                  ("nav", "Mouse navigation", "combo", v.nav_preset, [("Fission: right-drag orbit, middle-drag pan", "fission"),
+                   ("Fusion: shift+middle orbit, middle pan", "fusion"), ("SolidWorks: middle orbit, ctrl+middle pan", "solidworks")]),
+                  ("zoom_invert", "Reverse mouse-wheel zoom", "check", v.zoom_invert),
+                  ("ortho", "Orthographic camera by default", "check", st_.value("ortho", "false") in (True, "true")),
+                  ("vstyle", "Visual style", "combo", st_.value("vstyle", "edges"), VSTYLES),
+                  ("autosave", "Autosave every (minutes, 0 = off)", "int", int(st_.value("autosave", 5)), (0, 120)),
+                  ("recent_n", "Recent files to remember", "int", int(st_.value("recent_n", 10)), (0, 30))]
+        r = form_dialog(s, "Preferences", fields)
+        if not r: return
+        for k, x in r.items(): st_.setValue(k, x)
+        v.nav_preset, v.zoom_invert, v.vstyle = r["nav"], r["zoom_invert"], r["vstyle"]
+        s.set_units(r["units"]); s.autosave_timer.start(max(1, r["autosave"])*60000) if r["autosave"] else s.autosave_timer.stop()
+        v.update()
+
+    def add_recent(s, path):
+        if not path or os.path.dirname(os.path.abspath(path)) == os.path.abspath(s.autosave_dir()): return
+        st_ = s.settings(); lst = [p for p in (st_.value("recent") or []) if isinstance(p, str) and p != path]
+        if isinstance(st_.value("recent"), str): lst = []
+        lst.insert(0, path); st_.setValue("recent", lst[:int(st_.value("recent_n", 10))]); s.rebuild_recent()
+    def rebuild_recent(s):
+        m = getattr(s, "recent_menu", None)
+        if m is None: return
+        m.clear(); lst = s.settings().value("recent") or []
+        if isinstance(lst, str): lst = [lst]
+        for p in lst:
+            a = m.addAction(os.path.basename(p)); a.setToolTip(p); a.triggered.connect(lambda _=False, p=p: s.open_design(p))
+        if not lst: a = m.addAction("(none yet)"); a.setEnabled(False)
+        else: m.addSeparator(); m.addAction("Clear list", lambda: (s.settings().setValue("recent", []), s.rebuild_recent()))
+
+    def new_window(s):
+        args = [sys.argv[0]] if sys.argv and sys.argv[0].lower().endswith(".py") else []
+        if not C.QProcess.startDetached(sys.executable, args): W.QMessageBox.warning(s, "New window", "Couldn't start another Fission window.")
+
+    def autosave_dir(s):
+        d = os.path.join(C.QStandardPaths.writableLocation(C.QStandardPaths.AppDataLocation) or tempfile.gettempdir(), "autosave")
+        os.makedirs(d, exist_ok=True); return d
+    def insp_setup(s):
+        s.load_prefs(); s.rebuild_recent()
+        import uuid
+        s._session = uuid.uuid4().hex[:12]; d = s.autosave_dir()
+        s._lock = C.QLockFile(os.path.join(d, f"{s._session}.lock")); s._lock.tryLock(0)
+        s.autosave_timer = C.QTimer(s); s.autosave_timer.timeout.connect(s.autosave_tick)
+        mins = int(s.settings().value("autosave", 5))
+        if mins: s.autosave_timer.start(mins*60000)
+    def autosave_path(s): return os.path.join(s.autosave_dir(), f"{s._session}.fission")
+    def autosave_tick(s):
+        v = s.vp
+        if len(v.states) <= 1 or not s.dirty(): return
+        try:
+            data = {"app": "Fission", "format": 2, "units": DISPLAY["unit"], "pos": v.pos, "params": v.params, "autosave_of": s.path,
+                    "steps": [{"kind": stt["kind"], "op": enc(stt["op"])} for stt in v.states[1:]]}
+            data.update(v.insp_save())
+            tmp = s.autosave_path() + ".tmp"
+            with open(tmp, "w", encoding="utf-8") as f: json.dump(data, f)
+            os.replace(tmp, s.autosave_path())
+        except Exception: traceback.print_exc()
+    def autosave_cleanup(s):
+        try:
+            if os.path.exists(s.autosave_path()): os.remove(s.autosave_path())
+            s._lock.unlock()
+        except Exception: pass
+    def check_recovery(s):
+        import glob; d = s.autosave_dir(); found = []
+        for f in glob.glob(os.path.join(d, "*.fission")):
+            sid = os.path.basename(f)[:-8]
+            if sid == s._session: continue
+            lk = C.QLockFile(os.path.join(d, f"{sid}.lock"))
+            if lk.tryLock(0): found.append((f, lk))                       # its window is gone: it crashed or was killed
+        for f, lk in found:
+            try: info = json.load(open(f, encoding="utf-8"))
+            except Exception: info = {}
+            when = datetime.datetime.fromtimestamp(os.path.getmtime(f)).strftime("%Y-%m-%d %H:%M")
+            name = os.path.basename(info.get("autosave_of") or "") or "an unsaved design"
+            r = W.QMessageBox.question(s, "Recover design", f"Fission found unsaved work from {name} (autosaved {when}).\n\nOpen it now?",
+                                       W.QMessageBox.Open | W.QMessageBox.Discard | W.QMessageBox.Ignore, W.QMessageBox.Open)
+            if r == W.QMessageBox.Open:
+                s.open_design(f); s.path = None; s._saved = None; s.update_title()
+            if r != W.QMessageBox.Ignore:
+                try: os.remove(f)
+                except Exception: pass
+                lk.unlock()
+                try: os.remove(os.path.join(d, os.path.basename(f)[:-8] + ".lock"))
+                except Exception: pass
+
+# ---- MESH workspace commands, file import / export (0.7) ----
+MESH_OPS = ("meshimport", "cadimport", "tessellate", "meshconvert", "mrev", "mrepair", "mcut", "mcombine", "msep", "msmooth", "mreduce", "msection")
+QUALITY = [("Low", "low"), ("Medium", "med"), ("High", "high"), ("Custom", "custom")]
+UNIT_SCALE = [("Millimetres", 1.0), ("Centimetres", 10.0), ("Metres", 1000.0), ("Inches", 25.4), ("Feet", 304.8)]
+
+def make_mesh_commands():
+    out = {}
+    def add(c): c.group = "MESH"; out[c.name] = c
+    custom = lambda v: v["q"] == "custom"
+    add(Cmd("tessellate", "TESSELLATE", "tessellate", [
+        Fsel("targets", "Bodies", {"body"}, True), Fcombo("q", "Refinement", "med", QUALITY),
+        Flen("defl", "Surface deviation", 0.05, 0.0001, 100, show=custom), Fang("ang", "Normal deviation", 15.0, 1, 90, show=custom),
+        Fcheck("keep", "Keep the solid (hidden)")],
+        hint="Turns solid or surface bodies into triangle meshes (for mesh editing, or to see what an STL export will look like)."))
+    add(Cmd("meshconvert", "CONVERT MESH", "meshconvert", [
+        Fsel("targets", "Mesh bodies", {"body"}, True),
+        Fcombo("method", "Method", "prismatic", [("Prismatic (merge flat areas)", "prismatic"), ("Faceted (one face per triangle)", "faceted")])],
+        hint=f"Makes a B-rep body from a mesh so solid tools work on it. A closed mesh becomes a solid. Prismatic merges coplanar "
+             f"triangles into single faces - best for machined parts. Up to {MESH_CONVERT_MAX:,} triangles."))
+    add(Cmd("mrev", "REVERSE NORMAL", "mrev", [Fsel("targets", "Mesh bodies", {"body"}, True)],
+        hint="Flips which side of the mesh counts as outside."))
+    add(Cmd("mrepair", "REPAIR", "mrepair", [Fsel("targets", "Mesh bodies", {"body"}, True), Fcheck("holes", "Fill holes", True)],
+        hint="Welds duplicate vertices, drops degenerate and duplicate triangles, makes the normals agree and fills small holes."))
+    add(Cmd("mcut", "PLANE CUT", "mcut", [
+        Fsel("targets", "Mesh bodies", {"body"}, True), Fsel("plane", "Cutting plane", {"plane"}),
+        Fcombo("keep", "Keep", "below", [("Behind the plane", "below"), ("In front of the plane", "above"), ("Both (split)", "both")]),
+        Fcheck("cap", "Fill the cut (cap)", True), Fcheck("flip", "Flip the plane")],
+        hint="Trims a mesh with a plane. Fill keeps it closed so it can still be printed or converted."))
+    add(Cmd("mcombine", "COMBINE (MESH)", "mcombine", [
+        Fsel("target", "Target mesh", {"body"}), Fsel("tools", "Tool meshes", {"body"}, True),
+        Fcombo("op", "Operation", "merge", [("Merge (just put together)", "merge"), ("Join", "join"), ("Cut", "cut"), ("Intersect", "intersect")]),
+        Fcheck("keep", "Keep the tools")],
+        hint=f"Merge simply collects the triangles into one body. Join / Cut / Intersect are true booleans (closed meshes under "
+             f"{MESH_CONVERT_MAX:,} triangles)."))
+    add(Cmd("msep", "SEPARATE", "msep", [Fsel("targets", "Mesh bodies", {"body"}, True)],
+        hint="Splits a mesh into one body per connected piece."))
+    add(Cmd("msmooth", "SMOOTH", "msmooth", [
+        Fsel("targets", "Mesh bodies", {"body"}, True), Fint("iters", "Iterations", 10, 1, 200), Fnum("strength", "Strength", 0.5, 0.05, 1.0, 2)],
+        hint="Evens out scan noise without shrinking the part (Taubin smoothing). Open edges stay where they are."))
+    add(Cmd("mreduce", "REDUCE", "mreduce", [
+        Fsel("targets", "Mesh bodies", {"body"}, True), Fnum("pct", "Keep about", 50.0, 1.0, 99.0, 1, suffix=" %")],
+        hint="Fewer triangles: lighter files and faster conversion, at the cost of detail."))
+    add(Cmd("msection", "MESH SECTION SKETCH", "msection", [
+        Fsel("target", "Body", {"body"}), Fsel("plane", "Plane", {"plane"}), Flen("tol", "Simplify tolerance", 0.05, 0, 100)],
+        hint="Slices a mesh (or any body) with a plane and makes a sketch of the cross-section - trace or extrude it to rebuild a scan."))
+    return out
+
+
+class MeshWin:
+    """Window side of the mesh workspace and the STEP / IGES / BREP / STL exchange."""
+    def make_mesh_actions(s, act, cact):
+        M = {n: cact(n, None, COMMANDS[n].title.replace(" (MESH)", "").title()) for n in COMMANDS if COMMANDS[n].group == "MESH"}
+        M["insert"] = act("Insert Mesh...", None, s.insert_mesh, "meshimport", "Bring in an STL, OBJ or 3MF mesh (scans, downloaded parts)")
+        M["cadimport"] = act("Import CAD File...", None, s.import_cad, "cadimport", "STEP, IGES or BREP solids and surfaces from other CAD programs")
+        M["stl"] = act("Export STL...", None, s.export_stl, "export", "Triangle mesh for 3D printing, with refinement options")
+        M["step"] = act("Export STEP...", None, lambda: s.export_cad("STEP"), "export", "Exact geometry for other CAD programs")
+        M["iges"] = act("Export IGES...", None, lambda: s.export_cad("IGES"), "export")
+        M["brep"] = act("Export BREP...", None, lambda: s.export_cad("BREP"), "export")
+        M["3mf"] = act("Export 3MF...", None, s.export_3mf, "export"); M["obj"] = act("Export OBJ...", None, s.export_obj, "export")
+        return M
+
+    def mesh_ribbon(s, M, T, C3, construct_menu, IA, mv2, aln, scl, mat, app_):
+        prep = [M["mrepair"], M["mrev"], M["mreduce"], M["msmooth"]]
+        modify = [M["mcut"], M["mcombine"], M["msep"], M["meshconvert"], None, mv2, aln, scl, None, mat, app_]
+        return s.build_ribbon((("CREATE", (M["insert"], M["tessellate"], M["msection"]), [M["insert"], M["cadimport"], None, M["tessellate"], M["msection"]]),
+                               ("PREPARE", tuple(prep[:2]), prep),
+                               ("MODIFY", (M["mcut"], M["mcombine"], M["msep"], M["msmooth"], M["mreduce"], M["meshconvert"]), modify),
+                               ("CONSTRUCT", (C3["plane_offset"], C3["plane_mid"], C3["axis_2pts"]), construct_menu),
+                               *s.inspect_groups(IA),
+                               ("INSERT", (M["insert"], M["cadimport"]), [M["insert"], M["cadimport"]]),
+                               ("EXPORT", (M["stl"], M["step"]), [M["stl"], M["step"], M["iges"], M["brep"], None, M["3mf"], M["obj"]])),
+                              "MESH")
+
+    # ---------------- import ----------------
+    def _last_dir(s):
+        try: return s.settings().value("lastdir", "") or ""
+        except Exception: return ""
+    def _set_last_dir(s, path):
+        try: s.settings().setValue("lastdir", os.path.dirname(path))
+        except Exception: pass
+
+    def insert_mesh(s, path=None):
+        if not path:
+            path, _ = W.QFileDialog.getOpenFileName(s, "Insert Mesh", s._last_dir(), "Meshes (*.stl *.obj *.3mf);;All files (*)")
+        if not path: return
+        s._set_last_dir(path)
+        try:
+            W.QApplication.setOverrideCursor(C.Qt.WaitCursor); T = read_mesh_file(path)
+        except Exception as ex: W.QApplication.restoreOverrideCursor(); return W.QMessageBox.warning(s, "Insert Mesh", f"Couldn't read that file:\n{ex}")
+        W.QApplication.restoreOverrideCursor()
+        if not len(T): return W.QMessageBox.warning(s, "Insert Mesh", "That file has no triangles in it.")
+        P = T.reshape(-1, 3); size = np.ptp(P, 0)
+        d = W.QDialog(s); d.setWindowTitle("Insert Mesh"); f = W.QFormLayout(d)
+        f.addRow(W.QLabel(f"<b>{os.path.basename(path)}</b><br>{len(T):,} triangles"))
+        units = W.QComboBox()
+        for lab, k in UNIT_SCALE: units.addItem(lab, k)
+        if path.lower().endswith(".3mf"): units.setEnabled(False); units.setToolTip("3MF files say their own units")
+        sz = W.QLabel(); upd = lambda: sz.setText(" × ".join(fmt(x*units.currentData(), 2) for x in size) + " mm")
+        units.currentIndexChanged.connect(upd); upd()
+        yup = W.QCheckBox("File is Y-up (most game / scan tools)"); ctr = W.QCheckBox("Centre on the origin, sitting on the ground"); ctr.setChecked(True)
+        f.addRow("File units", units); f.addRow("Size", sz); f.addRow(yup); f.addRow(ctr)
+        bb = W.QDialogButtonBox(W.QDialogButtonBox.Ok | W.QDialogButtonBox.Cancel); bb.accepted.connect(d.accept); bb.rejected.connect(d.reject); f.addRow(bb)
+        if not d.exec(): return
+        op = {"t": "meshimport", "icon": "meshimport", "name": os.path.splitext(os.path.basename(path))[0], "data": pack_arr(T),
+              "scale": float(units.currentData()), "yup": yup.isChecked(), "center": ctr.isChecked()}
+        s.run_file_op(op, "Insert Mesh")
+
+    def import_cad(s, path=None):
+        if not path:
+            path, _ = W.QFileDialog.getOpenFileName(s, "Import CAD File", s._last_dir(),
+                                                    "CAD files (*.step *.stp *.iges *.igs *.brep);;STEP (*.step *.stp);;IGES (*.iges *.igs);;BREP (*.brep)")
+        if not path: return
+        s._set_last_dir(path)
+        try:
+            W.QApplication.setOverrideCursor(C.Qt.WaitCursor); sh = read_cad_file(path); txt = shape_to_brep_text(sh)
+        except Exception as ex: W.QApplication.restoreOverrideCursor(); return W.QMessageBox.warning(s, "Import", f"Couldn't read that file:\n{ex}")
+        W.QApplication.restoreOverrideCursor()
+        op = {"t": "cadimport", "icon": "cadimport", "name": os.path.splitext(os.path.basename(path))[0], "brep": pack_text(txt)}
+        s.run_file_op(op, "Import")
+
+    def run_file_op(s, op, title):
+        v = s.vp
+        if v.skedit: v.sk_finish()
+        try:
+            W.QApplication.setOverrideCursor(C.Qt.WaitCursor); n0 = len(v.bodies); v.do(op)
+            s.statusBar().showMessage(f"{title}: added {len(v.bodies) - n0} bod{'y' if len(v.bodies) - n0 == 1 else 'ies'}.", 6000)
+            v.fit(); v.update()
+        except Exception as ex: traceback.print_exc(); W.QMessageBox.warning(s, title, str(ex))
+        finally: W.QApplication.restoreOverrideCursor(); s.refresh()
+
+    # ---------------- export ----------------
+    def export_bodies(s):
+        v = s.vp; sel = sorted(v.msel | ({v.sel_body} if v.sel_body is not None else set()))
+        ids = [i for i in sel if i < len(v.bodies)] or [i for i, b in enumerate(v.bodies) if b.visible]
+        return ids
+
+    def export_cad(s, kind):
+        ext = {"STEP": "step", "IGES": "igs", "BREP": "brep"}[kind]; v = s.vp
+        ids = s.export_bodies()
+        if not ids: return W.QMessageBox.information(s, f"Export {kind}", "Nothing to export yet.")
+        big = [i for i in ids if getattr(v.bodies[i], "mesh", False) and len(v.bodies[i].tv) > MESH_CONVERT_MAX]
+        ids = [i for i in ids if i not in big]
+        if not ids: return W.QMessageBox.information(s, f"Export {kind}", "Only large meshes are selected - export them as STL / 3MF, or Reduce and Convert them first.")
+        path = s.save_path(f"Export {kind}", f"{s.export_name()}.{ext}", f"{kind} (*.{ext}{' *.stp' if kind == 'STEP' else ' *.iges' if kind == 'IGES' else ''})")
+        if not path: return
+        try:
+            W.QApplication.setOverrideCursor(C.Qt.WaitCursor); write_cad_file(path, [v.bodies[i].shape for i in ids])
+            s.statusBar().showMessage(f"Exported {len(ids)} bod{'y' if len(ids) == 1 else 'ies'} to {os.path.basename(path)}" +
+                                      (f" ({len(big)} large mesh(es) skipped)" if big else ""), 8000)
+        except Exception as ex: W.QMessageBox.warning(s, f"Export {kind}", str(ex))
+        finally: W.QApplication.restoreOverrideCursor()
+
+    def export_name(s):
+        return os.path.splitext(os.path.basename(s.path))[0] if getattr(s, "path", None) else "fission"
+
+    def export_stl(s):
+        v = s.vp; ids = s.export_bodies()
+        if not ids: return W.QMessageBox.information(s, "Export STL", "Nothing to export yet.")
+        d = W.QDialog(s); d.setWindowTitle("Export STL"); f = W.QFormLayout(d)
+        f.addRow(W.QLabel(f"{len(ids)} bod{'y' if len(ids) == 1 else 'ies'} ({'the selection' if v.msel or v.sel_body is not None else 'everything shown'})"))
+        q = W.QComboBox()
+        for lab, k in QUALITY: q.addItem(lab, k)
+        q.setCurrentIndex(1); dev = LengthSpin(0.0001, 100); dev.setValue(0.05); ang = W.QDoubleSpinBox(); ang.setRange(1, 90); ang.setValue(15); ang.setSuffix("°")
+        fmt_ = W.QComboBox(); fmt_.addItem("Binary", False); fmt_.addItem("ASCII text", True)
+        each = W.QCheckBox("One file per body")
+        info = W.QLabel(); info.setStyleSheet("color:#666")
+        def upd():
+            c = q.currentData() == "custom"; dev.setEnabled(c); ang.setEnabled(c)
+            n = 0
+            for i in ids:
+                b = v.bodies[i]
+                if getattr(b, "mesh", False): n += len(b.tv); continue
+                dl, an = mesh_quality(b.shape, q.currentData(), dev.value(), ang.value())
+                n += len(tessellate(b.shape, dl, math.radians(an)))
+            size = 250*n if fmt_.currentData() else 84 + 50*n
+            info.setText(f"{n:,} triangles, about {size/1e6:.2f} MB")
+        for w in (q, fmt_): w.currentIndexChanged.connect(upd)
+        dev.valueChanged.connect(upd); ang.valueChanged.connect(upd)
+        f.addRow("Refinement", q); f.addRow("Surface deviation", dev); f.addRow("Normal deviation", ang); f.addRow("Format", fmt_); f.addRow(each); f.addRow(info)
+        bb = W.QDialogButtonBox(W.QDialogButtonBox.Ok | W.QDialogButtonBox.Cancel); bb.accepted.connect(d.accept); bb.rejected.connect(d.reject); f.addRow(bb)
+        upd()
+        if not d.exec(): return
+        path = s.save_path("Export STL", f"{s.export_name()}.stl", "STL mesh (*.stl)")
+        if not path: return
+        try:
+            W.QApplication.setOverrideCursor(C.Qt.WaitCursor)
+            parts = []
+            for i in ids:
+                b = v.bodies[i]
+                if getattr(b, "mesh", False): T = b.tv
+                else:
+                    dl, an = mesh_quality(b.shape, q.currentData(), dev.value(), ang.value()); T = tessellate(b.shape, dl, math.radians(an))
+                parts.append((getattr(b, "name", None) or f"Body{i + 1}", T))
+            if each.isChecked() and len(parts) > 1:
+                root, ext = os.path.splitext(path)
+                for name, T in parts: write_stl(f"{root}_{re.sub(r'[^A-Za-z0-9_-]+', '_', name)}{ext}", T, fmt_.currentData(), name)
+            else: write_stl(path, np.concatenate([T for _, T in parts]), fmt_.currentData(), s.export_name())
+            s.statusBar().showMessage(f"Exported STL: {sum(len(T) for _, T in parts):,} triangles.", 8000)
+        except Exception as ex: W.QMessageBox.warning(s, "Export STL", str(ex))
+        finally: W.QApplication.restoreOverrideCursor()
+
+
+# ---- ASSEMBLE commands and window side (0.7) ----
+ASM_OPS = ("comp", "compprops", "joint", "jdrive", "mlink")
+JOINT_PICK = {"face", "edge", "point"}
+
+def make_asm_commands():
+    out = {}
+    def add(c): c.group = "ASSEMBLE"; out[c.name] = c
+    add(Cmd("comp", "NEW COMPONENT", "component", [
+        Fsel("cbodies", "Bodies", {"body"}, True, req=False), Ftext("name", "Name", "", ph="Component1"),
+        Fcheck("ground", "Ground it (it won't move)")],
+        hint="Groups bodies into a component - the part that joints move. With no bodies picked, it makes an empty component "
+             "and activates it, so new bodies go into it.",
+        build=lambda v, op, vp: dict(op, name=(v["name"].strip() or vp.new_comp_name()))))
+    lim = []
+    for k in range(3):
+        lim += [Fcheck(f"lim{k}", f"Limit value {k + 1}", show=lambda v, k=k: len(JOINT_DOF[v["kind"]]) > k),
+                Fnum(f"lo{k}", "  Minimum", -90.0, -1e6, 1e6, 3, show=lambda v, k=k: len(JOINT_DOF[v["kind"]]) > k and v[f"lim{k}"]),
+                Fnum(f"hi{k}", "  Maximum", 90.0, -1e6, 1e6, 3, show=lambda v, k=k: len(JOINT_DOF[v["kind"]]) > k and v[f"lim{k}"])]
+    add(Cmd("joint", "JOINT", "joint", [
+        Fsel("a", "Component 1 (moves)", JOINT_PICK), Fsel("b", "Component 2", JOINT_PICK | {"plane"}),
+        Fcombo("kind", "Motion", "rigid", JOINT_KINDS), Fang("angle", "Angle", 0.0), Flen("offset", "Offset", 0.0),
+        Fcheck("flip", "Flip"), Fcheck("asbuilt", "As-built (keep where they are)"), Ftext("name", "Name", "", ph="Joint1")] + lim,
+        hint="Pick a face, circular edge or point on the part that should move, then where it goes on the other part. Faces snap "
+             "to their centre, circles and cylinders to their axis. The motion type sets what can still move: Revolute spins, "
+             "Slider slides, Cylindrical does both, Pin-slot spins and slides sideways, Planar slides in a plane, Ball swivels.",
+        build=lambda v, op, vp: dict(op, name=v["name"].strip() or f"Joint{len(vp.joints) + 1}")))
+    return out
+
+
+class AsmWin:
+    """Window side: actions, browser folders, drive / motion link / motion study / BOM dialogs."""
+    def make_asm_actions(s, act, cact):
+        A = {"comp": cact("comp", None, "New Component"), "joint": cact("joint", "J", "Joint")}
+        A["asbuilt"] = act("As-built Joint", None, lambda: s.open_cmd("joint", vals={"asbuilt": True}), "joint",
+                           "Joint two parts where they already are")
+        A["drive"] = act("Drive Joints...", None, s.drive_dialog, "jdrive", "Set a joint's angle or distance")
+        A["link"] = act("Motion Link...", None, s.link_dialog, "mlink", "Make one joint follow another (gears, rack and pinion)")
+        A["motion"] = act("Motion Study...", None, s.motion_dialog, "motion", "Animate a joint through its range")
+        A["bom"] = act("Bill of Materials...", None, s.bom_dialog, "bom", "Parts list with quantities, materials and mass; save as CSV")
+        return A
+
+    def asm_group(s, A):
+        return ("ASSEMBLE", (A["comp"], A["joint"], A["drive"], A["motion"]),
+                [A["comp"], None, A["joint"], A["asbuilt"], None, A["drive"], A["link"], A["motion"], None, A["bom"]])
+
+    # ---- browser ----
+    def asm_browser(s, root, item, folders):
+        v = s.vp
+        if v.comps:
+            cf = item(root, "Components", "folder", "grp:cm", True); folders.append(cf)
+            for name, c in v.comps.items():
+                ids = v.comp_bodies(name)
+                it = item(cf, name + ("  (active)" if v.active_comp == name else "") + ("  📌" if c.get("ground") else ""), "component", f"cm:{name}",
+                          any(v.bodies[i].visible for i in ids) if ids else True)
+                if v.active_comp == name: f = it.font(0); f.setBold(True); it.setFont(0, f)
+                it.setToolTip(0, f"{len(ids)} bod{'y' if len(ids) == 1 else 'ies'}" + (" · grounded" if c.get("ground") else "") +
+                              (f"\nPart number {c['pn']}" if c.get("pn") else "") + "\nRight-click: activate, ground, properties")
+                for i in ids: item(it, getattr(v.bodies[i], "name", None) or f"Body{i + 1}", "body", f"bd:{i}", v.bodies[i].visible)
+        if v.joints:
+            jf = item(root, "Joints", "folder", "grp:jt", True); folders.append(jf)
+            for j, jt in enumerate(v.joints):
+                vals = ", ".join(f"{fmt(x, 2)}{'°' if JOINT_DOF[jt['kind']][k][1] == 'ang' else ' mm'}" for k, x in enumerate(jt["vals"]))
+                it = item(jf, f"{jt['name']}  ({dict((b, a) for a, b in JOINT_KINDS)[jt['kind']]})", "joint", f"jt:{j}", True)
+                it.setToolTip(0, f"{jt['a']} → {jt['b'] or 'the origin'}" + (f"\n{vals}" if vals else "") + "\nRight-click to drive or animate it")
+
+    def asm_vis(s, ref, on):
+        v = s.vp
+        if ref.startswith("cm:"):
+            for i in v.comp_bodies(ref[3:]): nb = v.bodies[i].restyled(); nb.visible = on; v.bodies[i] = nb
+        elif ref in ("grp:cm", "grp:jt") or ref.startswith("jt:"): pass
+        else: return False
+        v.update(); C.QTimer.singleShot(0, s.refresh); return True
+
+    def asm_click(s, ref):
+        v = s.vp
+        if ref.startswith("cm:"):
+            ids = v.comp_bodies(ref[3:])
+            if ids: v.sel_body, v.msel, v.sel_face = ids[0], set(ids), None; v.update()
+            return True
+        return False
+
+    def asm_browser_menu(s, m, ref):
+        v = s.vp
+        if ref.startswith("cm:"):
+            name = ref[3:]; c = v.comps.get(name, {})
+            if v.active_comp == name: m.addAction("Deactivate (new bodies go to the top level)", lambda: s.activate_comp(None))
+            else: m.addAction("Activate (new bodies go into it)", lambda: s.activate_comp(name))
+            m.addAction("Unground" if c.get("ground") else "Ground", lambda: s.comp_props(name, ground=not c.get("ground")))
+            m.addAction("Properties...", lambda: s.comp_dialog(name))
+            return True
+        if ref.startswith("jt:"):
+            j = int(ref[3:]); jt = v.joints[j]
+            a = m.addAction("Drive...", lambda: s.drive_dialog(j)); a.setEnabled(bool(JOINT_DOF[jt["kind"]]))
+            a = m.addAction("Animate (motion study)...", lambda: s.motion_dialog(j)); a.setEnabled(bool(JOINT_DOF[jt["kind"]]))
+            return True
+        return False
+
+    def activate_comp(s, name):
+        s.vp.active_comp = name; s.refresh()
+        s.statusBar().showMessage(f"{name} is active - new bodies go into it." if name else "No active component.", 6000)
+
+    def comp_props(s, comp, **kw):
+        return s.run_asm({"t": "compprops", "icon": "component", "comp": comp, **kw}, "Component")
+
+    def run_asm(s, op, title):
+        v = s.vp
+        if s.busy(): return False
+        try:
+            W.QApplication.setOverrideCursor(C.Qt.WaitCursor); v.do(op); return True
+        except Exception as ex: traceback.print_exc(); W.QMessageBox.warning(s, title, str(ex)); return False
+        finally: W.QApplication.restoreOverrideCursor(); s.refresh(); v.update()
+
+    def comp_dialog(s, name):
+        v = s.vp; c = v.comps[name]
+        d = W.QDialog(s); d.setWindowTitle(f"{name} properties"); f = W.QFormLayout(d)
+        nm = W.QLineEdit(name); pn = W.QLineEdit(c.get("pn", "")); de = W.QLineEdit(c.get("desc", "")); gr = W.QCheckBox("Grounded"); gr.setChecked(bool(c.get("ground")))
+        f.addRow("Name", nm); f.addRow("Part number", pn); f.addRow("Description", de); f.addRow(gr)
+        ids = v.comp_bodies(name); mass = sum((v.body_props(v.bodies[i])["mass"] or 0) for i in ids); vol_ = sum(v.body_props(v.bodies[i])["volume"] for i in ids)
+        f.addRow("Bodies", W.QLabel(str(len(ids)))); f.addRow("Volume", W.QLabel(f"{fmt(vol_/1000, 3)} cm³")); f.addRow("Mass", W.QLabel(f"{fmt(mass, 2)} g" if mass else "- (set a material)"))
+        bb = W.QDialogButtonBox(W.QDialogButtonBox.Ok | W.QDialogButtonBox.Cancel); bb.accepted.connect(d.accept); bb.rejected.connect(d.reject); f.addRow(bb)
+        if not d.exec(): return
+        s.comp_props(name, name=nm.text().strip() or name, pn=pn.text().strip(), desc=de.text().strip(), ground=gr.isChecked())
+
+    # ---- drive / links / motion ----
+    def _joint_combo(s, sel=None, movable=True):
+        cb = W.QComboBox()
+        for j, jt in enumerate(s.vp.joints):
+            if movable and not JOINT_DOF[jt["kind"]]: continue
+            cb.addItem(f"{jt['name']} ({jt['a']})", j)
+        if sel is not None and cb.findData(sel) >= 0: cb.setCurrentIndex(cb.findData(sel))
+        return cb
+
+    def drive_dialog(s, j=None, vals=None):
+        v = s.vp
+        if not any(JOINT_DOF[jt["kind"]] for jt in v.joints): return W.QMessageBox.information(s, "Drive Joints", "There are no movable joints yet.")
+        if vals is not None: return s.run_asm({"t": "jdrive", "icon": "jdrive", "j": j, "vals": list(vals)}, "Drive Joints")
+        d = W.QDialog(s); d.setWindowTitle("Drive Joints"); f = W.QFormLayout(d); cb = s._joint_combo(j); f.addRow("Joint", cb)
+        boxes = []
+        for k in range(3):
+            b = W.QDoubleSpinBox(); b.setRange(-1e6, 1e6); b.setDecimals(3); f.addRow(f"Value {k + 1}", b); boxes.append(b)
+        def upd():
+            jt = v.joints[cb.currentData()]; dof = JOINT_DOF[jt["kind"]]
+            for k, b in enumerate(boxes):
+                vis = k < len(dof); f.setRowVisible(b, vis)
+                if vis:
+                    f.labelForField(b).setText(dof[k][0]); b.setSuffix("°" if dof[k][1] == "ang" else " mm"); b.setValue(jt["vals"][k])
+                    lim = (jt.get("lim") or {}).get(k) or (jt.get("lim") or {}).get(str(k))
+                    b.setToolTip(f"Limited to {lim[0]} … {lim[1]}" if lim else "")
+        cb.currentIndexChanged.connect(upd); upd()
+        bb = W.QDialogButtonBox(W.QDialogButtonBox.Ok | W.QDialogButtonBox.Cancel); bb.accepted.connect(d.accept); bb.rejected.connect(d.reject); f.addRow(bb)
+        if not d.exec(): return
+        jj = cb.currentData(); n = len(JOINT_DOF[v.joints[jj]["kind"]])
+        s.run_asm({"t": "jdrive", "icon": "jdrive", "j": jj, "vals": [boxes[k].value() for k in range(n)]}, "Drive Joints")
+
+    def link_dialog(s, j1=None, j2=None, ratio=None):
+        v = s.vp
+        if sum(1 for jt in v.joints if JOINT_DOF[jt["kind"]]) < 2: return W.QMessageBox.information(s, "Motion Link", "Link needs two movable joints.")
+        if ratio is not None: return s.run_asm({"t": "mlink", "icon": "mlink", "j1": j1, "j2": j2, "k1": 0, "k2": 0, "ratio": ratio}, "Motion Link")
+        d = W.QDialog(s); d.setWindowTitle("Motion Link"); f = W.QFormLayout(d)
+        a, b = s._joint_combo(j1), s._joint_combo(j2); b.setCurrentIndex(min(1, b.count() - 1))
+        k1, k2 = W.QSpinBox(), W.QSpinBox(); k1.setRange(1, 3); k2.setRange(1, 3)
+        r = W.QDoubleSpinBox(); r.setRange(-1e4, 1e4); r.setDecimals(4); r.setValue(1.0)
+        f.addRow("Joint", a); f.addRow("  value", k1); f.addRow("drives joint", b); f.addRow("  value", k2); f.addRow("Ratio", r)
+        f.addRow(W.QLabel("e.g. 0.5 for a 2:1 gear, or mm per degree for a rack (π·module/180·teeth)."))
+        bb = W.QDialogButtonBox(W.QDialogButtonBox.Ok | W.QDialogButtonBox.Cancel); bb.accepted.connect(d.accept); bb.rejected.connect(d.reject); f.addRow(bb)
+        if not d.exec() or a.currentData() == b.currentData(): return
+        s.run_asm({"t": "mlink", "icon": "mlink", "j1": a.currentData(), "j2": b.currentData(), "k1": k1.value() - 1, "k2": k2.value() - 1,
+                   "ratio": r.value()}, "Motion Link")
+
+    def motion_dialog(s, j=None, rng=None, frames=48, save_dir=None):
+        v = s.vp
+        if not any(JOINT_DOF[jt["kind"]] for jt in v.joints): return W.QMessageBox.information(s, "Motion Study", "There are no movable joints yet.")
+        if rng is None:
+            d = W.QDialog(s); d.setWindowTitle("Motion Study"); f = W.QFormLayout(d); cb = s._joint_combo(j); f.addRow("Joint", cb)
+            k = W.QSpinBox(); k.setRange(1, 3); lo = W.QDoubleSpinBox(); hi = W.QDoubleSpinBox()
+            for x in (lo, hi): x.setRange(-1e6, 1e6); x.setDecimals(2)
+            lo.setValue(0); hi.setValue(360); n = W.QSpinBox(); n.setRange(2, 2000); n.setValue(frames)
+            sv = W.QCheckBox("Also save the frames as PNG images")
+            f.addRow("Value", k); f.addRow("From", lo); f.addRow("To", hi); f.addRow("Frames", n); f.addRow(sv)
+            def upd():
+                jt = v.joints[cb.currentData()]; lim = (jt.get("lim") or {}).get(0) or (jt.get("lim") or {}).get("0")
+                if lim: lo.setValue(lim[0]); hi.setValue(lim[1])
+                elif JOINT_DOF[jt["kind"]][0][1] == "len": lo.setValue(0); hi.setValue(50)
+            cb.currentIndexChanged.connect(upd); upd()
+            bb = W.QDialogButtonBox(W.QDialogButtonBox.Ok | W.QDialogButtonBox.Cancel); bb.accepted.connect(d.accept); bb.rejected.connect(d.reject); f.addRow(bb)
+            if not d.exec(): return
+            j, kk, rng, frames = cb.currentData(), k.value() - 1, (lo.value(), hi.value()), n.value()
+            if sv.isChecked(): save_dir = W.QFileDialog.getExistingDirectory(s, "Folder for the frames") or None
+        else: kk = 0
+        jt = v.joints[j]; kk = min(kk, len(JOINT_DOF[jt["kind"]]) - 1)
+        W.QApplication.setOverrideCursor(C.Qt.WaitCursor)
+        try: seq = v.motion_frames(j, kk, rng[0], rng[1], frames)
+        except Exception as ex: W.QApplication.restoreOverrideCursor(); return W.QMessageBox.warning(s, "Motion Study", str(ex))
+        W.QApplication.restoreOverrideCursor()
+        s._motion = {"seq": seq, "i": 0, "keep": list(v.bodies), "dir": save_dir}
+        if not hasattr(s, "_mtimer"): s._mtimer = C.QTimer(s); s._mtimer.timeout.connect(s.motion_tick)
+        s._mtimer.start(40); s.statusBar().showMessage("Playing the motion study - Esc or any command stops it.", 4000)
+        return seq
+
+    def motion_tick(s):
+        m = getattr(s, "_motion", None); v = s.vp
+        if not m: s._mtimer.stop(); return
+        if m["i"] >= len(m["seq"]) or v.cmd or v.skedit:
+            s._mtimer.stop(); v.bodies = m["keep"]; s._motion = None; v.update(); return
+        v.bodies = m["seq"][m["i"]]; v.update()
+        if m["dir"]:
+            v.repaint(); v.grabFramebuffer().save(os.path.join(m["dir"], f"frame_{m['i']:04d}.png"))
+        m["i"] += 1
+
+    # ---- bill of materials ----
+    def bom_dialog(s, path=None):
+        v = s.vp; rows = v.bom_rows()
+        if not rows: return W.QMessageBox.information(s, "Bill of Materials", "Nothing to list yet.")
+        heads = ["Item", "Qty", "Name", "Part number", "Description", "Material", "Mass (g)", "Volume (cm³)", "Size (mm)"]
+        def cells(i, r):
+            return [str(i + 1), str(r["qty"]), r["name"], r["pn"], r["desc"], r["material"], "-" if r["mass"] is None else f"{r['mass']:.2f}",
+                    f"{r['volume']/1000:.3f}", f"{r['size'].x:.1f} × {r['size'].y:.1f} × {r['size'].z:.1f}"]
+        if path:
+            import csv
+            with open(path, "w", newline="", encoding="utf-8") as fh:
+                w_ = csv.writer(fh); w_.writerow(heads)
+                for i, r in enumerate(rows): w_.writerow(cells(i, r))
+            return rows
+        d = W.QDialog(s); d.setWindowTitle("Bill of Materials"); d.resize(820, 360); lay = W.QVBoxLayout(d)
+        t = W.QTableWidget(len(rows), len(heads)); t.setHorizontalHeaderLabels(heads); t.verticalHeader().hide()
+        for i, r in enumerate(rows):
+            for k, c in enumerate(cells(i, r)): t.setItem(i, k, W.QTableWidgetItem(c))
+        t.resizeColumnsToContents(); lay.addWidget(t)
+        bb = W.QDialogButtonBox(); sv = bb.addButton("Save CSV...", W.QDialogButtonBox.ActionRole); bb.addButton(W.QDialogButtonBox.Close)
+        bb.rejected.connect(d.reject); lay.addWidget(bb)
+        def save():
+            p, _ = W.QFileDialog.getSaveFileName(d, "Save BOM", f"{s.export_name()}_bom.csv", "CSV (*.csv)")
+            if p: s.bom_dialog(p if p.lower().endswith(".csv") else p + ".csv"); s.statusBar().showMessage(f"Saved {os.path.basename(p)}", 5000)
+        sv.clicked.connect(save); d.exec(); return rows
+
+# ---- SHEET METAL commands + window (0.7) ----
+def make_sheet_commands():
+    out = {}
+    def add(c): c.group = "SHEET METAL"; out[c.name] = c
+    add(Cmd("smrule", "SHEET METAL RULES", "smrule", [
+        Flen("thick", "Thickness", 1.5, 0.01), Flen("radius", "Bend radius", 1.5, 0.0), Fnum("kfactor", "K-factor", 0.44, 0.0, 1.0, 3),
+        Flen("gap", "Relief / hem gap", 0.5, 0.0)],
+        hint="Applies to the sheet metal steps after this one. The K-factor says where the neutral layer sits in a bend "
+             "(0 = inside, 0.5 = middle) and sets how long the flat pattern is."))
+    add(Cmd("sbase", "BASE FLANGE", "sbase", [Fsel("profiles", "Profiles", {"profile"}, True), Fcheck("flip", "Flip side")],
+        hint="A flat plate of the rules' thickness from closed sketch profiles - the start of a sheet metal part."))
+    add(Cmd("sflange", "FLANGE", "sflange", [
+        Fsel("edges", "Edges", {"edge"}, True), Flen("h", "Height", 10.0, 0.0), Fang("angle", "Bend angle", 90.0, 0.0, 180.0),
+        Fcheck("flip", "Bend the other way"), Fcheck("custom_r", "Own bend radius"), Flen("r", "Bend radius", 1.5, 0.0, show=lambda v: v["custom_r"])],
+        hint="Bends a wall up from the edges of a sheet. Edges that meet get a corner relief so the bends don't collide."))
+    add(Cmd("shem", "HEM", "shem", [
+        Fsel("edges", "Edges", {"edge"}, True), Flen("h", "Length", 5.0, 0.0), Flen("gap", "Gap", 0.5, 0.0), Fcheck("flip", "Fold the other way")],
+        hint="Folds the edge right back on itself (180°) to stiffen it and take the sharp edge off."))
+    add(Cmd("sfold", "BEND", "sfold", [
+        Fsel("line", "Bend line", {"curve"}), Fang("angle", "Angle", 90.0, 0.0, 180.0), Fcheck("flip", "Bend the other way"),
+        Fcheck("side", "Move the other side")],
+        hint="Folds a flat sheet along a sketch line drawn on it, with the rules' bend radius; the flat length is kept."))
+    add(Cmd("unfold", "UNFOLD", "unfold", [Fsel("targets", "Sheet bodies", {"body"}, True)],
+        hint="Lays the part flat in place (Refold puts it back). Use Flat Pattern to keep the folded part and get a flat copy."))
+    add(Cmd("refold", "REFOLD", "refold", [Fsel("targets", "Unfolded bodies", {"body"}, True)], hint="Folds an unfolded part back up."))
+    add(Cmd("flatpattern", "FLAT PATTERN", "flatpattern", [Fsel("targets", "Sheet bodies", {"body"}, True)],
+        hint="Adds the flat blank next to the part, with its bend lines - export it as DXF for a laser or plasma cutter."))
+    return out
+
+
+class SheetWin:
+    def make_sheet_actions(s, act, cact):
+        Sx = {n: cact(n, None, COMMANDS[n].title.title()) for n in COMMANDS if COMMANDS[n].group == "SHEET METAL"}
+        Sx["dxf"] = act("Export Flat Pattern DXF...", None, s.export_flat_dxf, "export", "Outline + bend lines of the selected sheet part")
+        return Sx
+
+    def sheet_ribbon(s, Sx, T, C3, construct_menu, IA, fil, mov, mat, app_):
+        return s.build_ribbon((("CREATE", (T["pick"], Sx["sbase"], Sx["sflange"], Sx["shem"], Sx["sfold"]),
+                                [T["pick"], None, Sx["sbase"], Sx["sflange"], Sx["shem"], Sx["sfold"]]),
+                               ("MODIFY", (Sx["unfold"], Sx["refold"], Sx["smrule"]), [Sx["unfold"], Sx["refold"], None, Sx["smrule"], None, fil, mov, mat, app_]),
+                               ("CONSTRUCT", (C3["plane_offset"], C3["plane_mid"], C3["axis_2pts"]), construct_menu),
+                               *s.inspect_groups(IA),
+                               ("FLAT PATTERN", (Sx["flatpattern"], Sx["dxf"]), [Sx["flatpattern"], Sx["dxf"]])), "SHEET METAL")
+
+    def export_flat_dxf(s, path=None, bi=None):
+        v = s.vp
+        if bi is None: bi = v.sel_body if v.sel_body is not None else next((i for i, b in enumerate(v.bodies) if getattr(b, "sheet", None) and b.visible), None)
+        if bi is None: return W.QMessageBox.information(s, "Flat pattern", "Select a sheet metal body first.")
+        b = v.bodies[bi]; th = (getattr(b, "sheet", None) or v.sm)["t"]; kk = (getattr(b, "sheet", None) or v.sm)["k"]
+        try: flat, lines, frame = unfold_sheet(b.folded if getattr(b, "folded", None) is not None else b.shape, th, kk)
+        except Exception as ex: return W.QMessageBox.warning(s, "Flat pattern", f"Couldn't flatten that body: {ex}")
+        if not path:
+            path, _ = W.QFileDialog.getSaveFileName(s, "Export flat pattern", f"{s.export_name()}_flat.dxf", "DXF (*.dxf)")
+            if not path: return
+            if not path.lower().endswith(".dxf"): path += ".dxf"
+        flat_dxf(path, flat, lines, frame); s.statusBar().showMessage(f"Flat pattern saved: {os.path.basename(path)} ({len(lines)} bend lines)", 8000)
+        return path
+
+class RenderDialog(W.QDialog):
+    """Local render: pick the look and size, render, save PNG, or render a turntable as a PNG sequence."""
+    SIZES = [("1280 × 720", (1280, 720)), ("1920 × 1080", (1920, 1080)), ("2560 × 1440", (2560, 1440)), ("3840 × 2160 (4K)", (3840, 2160)),
+             ("1080 × 1080", (1080, 1080)), ("Viewport size", None)]
+    def __init__(s, win):
+        super().__init__(win); s.win = win; s.setWindowTitle("Render"); s.resize(1100, 700); s.img = None
+        h = W.QHBoxLayout(s); side = W.QWidget(); side.setFixedWidth(260); f = W.QFormLayout(side); h.addWidget(side)
+        s.pic = W.QLabel("Press Render"); s.pic.setAlignment(C.Qt.AlignCenter); s.pic.setStyleSheet("background:#3c4046;color:#ddd"); h.addWidget(s.pic, 1)
+        s.env = W.QComboBox(); [s.env.addItem(lab, k) for lab, k in (("Studio (light)", "studio"), ("Warm", "warm"), ("Dark", "dark"))]
+        s.size = W.QComboBox(); [s.size.addItem(lab, d) for lab, d in s.SIZES]
+        s.reflect, s.ao, s.shadow = W.QCheckBox("Ground reflection"), W.QCheckBox("Ambient occlusion"), W.QCheckBox("Soft shadow")
+        for b in (s.reflect, s.ao, s.shadow): b.setChecked(True)
+        s.ss = W.QSpinBox(); s.ss.setRange(1, 4); s.ss.setValue(2); s.ss.setToolTip("Supersampling: renders bigger and scales down for smooth edges")
+        f.addRow("Environment", s.env); f.addRow("Size", s.size); f.addRow(s.reflect); f.addRow(s.ao); f.addRow(s.shadow); f.addRow("Anti-aliasing", s.ss)
+        rb = W.QPushButton("Render"); rb.setObjectName("primary"); rb.clicked.connect(lambda: s.render()); f.addRow(rb)
+        sv = W.QPushButton("Save PNG..."); sv.clicked.connect(lambda: s.save()); f.addRow(sv)
+        f.addRow(W.QLabel("<b>Turntable</b>")); s.frames = W.QSpinBox(); s.frames.setRange(4, 720); s.frames.setValue(36); f.addRow("Frames", s.frames)
+        tt = W.QPushButton("Render turntable..."); tt.clicked.connect(lambda: s.turntable()); f.addRow(tt)
+        f.addRow(W.QLabel("Uses the current camera. Materials (Steel, Brass, ...) render as metal."))
+        cl = W.QPushButton("Close"); cl.clicked.connect(s.accept); f.addRow(cl)
+    def opts(s): return {"env": s.env.currentData(), "reflect": s.reflect.isChecked(), "ao": s.ao.isChecked(), "shadow": s.shadow.isChecked(), "ss": s.ss.value()}
+    def dims(s):
+        d = s.size.currentData(); vp = s.win.vp
+        return d if d else (max(64, vp.width()), max(64, vp.height()))
+    def render(s, size=None):
+        W.QApplication.setOverrideCursor(C.Qt.WaitCursor)
+        try: s.img = s.win.vp.render_image(*(size or s.dims()), s.opts())
+        except Exception as ex: traceback.print_exc(); W.QMessageBox.warning(s, "Render", str(ex)); return None
+        finally: W.QApplication.restoreOverrideCursor()
+        s.pic.setPixmap(G.QPixmap.fromImage(s.img).scaled(s.pic.size(), C.Qt.KeepAspectRatio, C.Qt.SmoothTransformation)); return s.img
+    def save(s, path=None):
+        if s.img is None and s.render() is None: return
+        if not path:
+            path, _ = W.QFileDialog.getSaveFileName(s, "Save render", f"{s.win.export_name()}_render.png", "PNG (*.png)")
+            if not path: return
+        if not path.lower().endswith(".png"): path += ".png"
+        s.img.save(path); return path
+    def turntable(s, folder=None, frames=None, size=None):
+        folder = folder or W.QFileDialog.getExistingDirectory(s, "Folder for the turntable frames")
+        if not folder: return
+        vp = s.win.vp; yaw0 = vp.yaw; n = frames or s.frames.value(); out = []
+        try:
+            for i in range(n):
+                vp.yaw = turntable_cam(yaw0, i, n); img = vp.render_image(*(size or s.dims()), s.opts())
+                p = os.path.join(folder, f"turntable_{i:04d}.png"); img.save(p); out.append(p)
+                if i == 0: s.img = img; s.pic.setPixmap(G.QPixmap.fromImage(img).scaled(s.pic.size(), C.Qt.KeepAspectRatio, C.Qt.SmoothTransformation))
+                W.QApplication.processEvents()
+        finally: vp.yaw = yaw0; vp.update()
+        s.win.statusBar().showMessage(f"Saved {n} turntable frames to {folder}", 8000); return out
+
+
+class StoryPanel(W.QFrame):
+    """Animation workspace: an explode storyboard with a time slider, play, and frame export."""
+    def __init__(s, win):
+        super().__init__(win.vp); s.win = win; s.setObjectName("cmd"); s.setFixedWidth(300)
+        lay = W.QVBoxLayout(s); lay.setContentsMargins(0, 0, 0, 0); lay.setSpacing(0)
+        hd = W.QLabel("STORYBOARD"); hd.setObjectName("cmdhdr"); lay.addWidget(hd)
+        body = W.QWidget(); f = W.QFormLayout(body); f.setContentsMargins(10, 8, 10, 10); lay.addWidget(body)
+        s.factor = W.QDoubleSpinBox(); s.factor.setRange(0.1, 10); s.factor.setValue(1.0); f.addRow("Explode distance", s.factor)
+        ab = W.QPushButton("Auto Explode"); ab.clicked.connect(s.auto); f.addRow(ab)
+        s.list = W.QListWidget(); s.list.setMaximumHeight(140); f.addRow(s.list)
+        s.dur = W.QDoubleSpinBox(); s.dur.setRange(0.1, 30); s.dur.setValue(1.0); s.dur.setSuffix(" s"); f.addRow("Step length", s.dur)
+        s.dur.valueChanged.connect(s.set_dur)
+        s.slider = W.QSlider(C.Qt.Horizontal); s.slider.setRange(0, 1000); s.slider.valueChanged.connect(s.scrub); f.addRow("Time", s.slider)
+        row = W.QHBoxLayout(); s.play_b = W.QPushButton("▶ Play"); s.play_b.clicked.connect(s.play); rs = W.QPushButton("Reset"); rs.clicked.connect(lambda: s.slider.setValue(0))
+        row.addWidget(s.play_b); row.addWidget(rs); f.addRow(row)
+        ex = W.QPushButton("Export frames..."); ex.clicked.connect(lambda: s.export()); f.addRow(ex)
+        s.fps = W.QSpinBox(); s.fps.setRange(5, 60); s.fps.setValue(24); f.addRow("Frames / s", s.fps)
+        s.use_render = W.QCheckBox("Use the renderer (slower, nicer)"); f.addRow(s.use_render)
+        cl = W.QPushButton("Close"); cl.clicked.connect(s.close_panel); f.addRow(cl)
+        s.timer = C.QTimer(s); s.timer.timeout.connect(s.tick); s.adjustSize(); s.move(16, 16); s.refresh_list()
+    def steps(s): return s.win.vp.storyboard
+    def total(s): return sum(x["dur"] for x in s.steps()) or 1.0
+    def refresh_list(s):
+        s.list.clear(); v = s.win.vp
+        for k, x in enumerate(s.steps()):
+            names = ", ".join(getattr(v.bodies[i], "comp", None) or getattr(v.bodies[i], "name", None) or f"Body{i + 1}" for i in x["bodies"] if i < len(v.bodies))
+            s.list.addItem(f"{k + 1}. {names}  ({fmt(x['dur'], 1)} s)")
+    def auto(s):
+        try: s.win.vp.storyboard = s.win.vp.explode_auto(s.factor.value())
+        except Exception as ex: return W.QMessageBox.information(s, "Explode", str(ex))
+        s.refresh_list(); s.slider.setValue(1000); s.scrub(1000); s.win._saved = None
+    def set_dur(s, val):
+        r = s.list.currentRow(); st_ = s.steps()
+        for k, x in enumerate(st_):
+            if r < 0 or k == r: x["dur"] = float(val)
+        s.refresh_list(); s.scrub(s.slider.value())
+    def scrub(s, val):
+        v = s.win.vp; v.disp_off = v.explode_offsets(s.steps(), s.total()*val/1000.0); v.update()
+    def play(s):
+        if s.timer.isActive(): s.timer.stop(); s.play_b.setText("▶ Play"); return
+        if s.slider.value() >= 1000: s.slider.setValue(0)
+        s.timer.start(int(1000/s.fps.value())); s.play_b.setText("■ Stop")
+    def tick(s):
+        step = int(1000/(s.total()*s.fps.value()))
+        if s.slider.value() >= 1000: s.timer.stop(); s.play_b.setText("▶ Play"); return
+        s.slider.setValue(min(1000, s.slider.value() + max(1, step)))
+    def export(s, folder=None, size=None):
+        folder = folder or W.QFileDialog.getExistingDirectory(s, "Folder for the frames")
+        if not folder: return
+        v = s.win.vp; n = max(2, int(s.total()*s.fps.value())); out = []
+        for i in range(n + 1):
+            v.disp_off = v.explode_offsets(s.steps(), s.total()*i/n)
+            if s.use_render.isChecked(): img = v.render_image(*(size or (v.width(), v.height())), {"ss": 1})
+            else: v.repaint(); img = v.grabFramebuffer()
+            p = os.path.join(folder, f"frame_{i:04d}.png"); img.save(p); out.append(p); W.QApplication.processEvents()
+        s.win.statusBar().showMessage(f"Saved {len(out)} frames to {folder}", 8000); return out
+    def close_panel(s):
+        s.timer.stop(); s.win.vp.disp_off = {}; s.win.vp.update(); s.hide()
+
+
+class RenderWin:
+    WS_PAGE = {"RENDER": 6, "ANIMATION": 7, "MANUFACTURE": 8}
+    def set_workspace(s, ws):
+        if ws == "DESIGN":
+            if s.vp.disp_off and hasattr(s, "story"): s.story.close_panel()
+            s.tab_clicked(getattr(s, "design_tab", "SOLID")); return
+        if s.cur_tab not in s.WS_PAGE: s.design_tab = s.cur_tab
+        s.vp.skedit and s.vp.sk_finish()
+        s.tab_clicked(ws)
+        if ws == "ANIMATION": s.open_story()
+    def render_dialog(s):
+        d = RenderDialog(s); s._render_dlg = d; d.exec()
+    def open_story(s):
+        if not hasattr(s, "story"): s.story = StoryPanel(s)
+        s.story.refresh_list(); s.story.show(); s.story.raise_()
+
+# ---- MANUFACTURE commands + window (0.7) ----
+CAM_NAMES = {"cam_face": "Face", "cam_contour": "2D Contour", "cam_pocket": "2D Pocket", "cam_drill": "Drill"}
+def make_cam_commands():
+    out = {}
+    def add(c): c.group = "MANUFACTURE"; out[c.name] = c
+    tool = lambda d=1: Fint("tool", "Tool number (T)", d, 1, 99)
+    add(Cmd("cam_setup", "SETUP", "camsetup", [
+        Fcombo("origin", "Work origin (on the stock top)", "corner", [("Front-left corner", "corner"), ("Centre", "center")]),
+        Flen("side", "Stock: side offset", 2.0, 0.0), Flen("top", "Stock: top offset", 1.0, 0.0), Flen("bottom", "Stock: bottom offset", 0.0, 0.0),
+        Flen("safe", "Safe height (above stock)", 5.0, 0.5), Flen("retract", "Retract height", 2.0, 0.1)],
+        hint="The block of material you start from (the part's box plus offsets) and where X0 Y0 Z0 is: the top of the stock."))
+    add(Cmd("cam_face", "FACE", "camface", [tool(5), Fnum("stepover", "Stepover", 60.0, 5.0, 95.0, 0, suffix=" %"), Flen("stepdown", "Stepdown (0 = tool's)", 0.0, 0.0)],
+        hint="Skims the top of the stock flat, down to the top of the part."))
+    add(Cmd("cam_contour", "2D CONTOUR", "camcontour", [
+        Fsel("geo", "Flat face or closed edges", {"face", "edge"}, True), tool(1),
+        Fcombo("side", "Tool side", "outside", [("Outside (cut a part out)", "outside"), ("Inside (open a hole)", "inside"), ("On the line", "on")]),
+        Fcombo("to", "Bottom", "model", [("Bottom of the part", "model"), ("The picked face", "face")]), Flen("extra", "Extra depth", 0.5, 0.0),
+        Flen("stepdown", "Stepdown (0 = tool's)", 0.0, 0.0)],
+        hint="Follows an outline at several depths: pick the part's top face to cut it out, or the floor of a hole to open it."))
+    add(Cmd("cam_pocket", "2D POCKET", "campocket", [
+        Fsel("faces", "Pocket floors", {"face"}, True), tool(1), Fnum("stepover", "Stepover", 45.0, 5.0, 95.0, 0, suffix=" %"),
+        Flen("stepdown", "Stepdown (0 = tool's)", 0.0, 0.0)],
+        hint="Clears everything above flat floors, working outward in rings and down in steps."))
+    add(Cmd("cam_drill", "DRILL", "camdrill", [
+        Fsel("holes", "Holes (walls or edges)", {"face", "edge"}, True), tool(3), Flen("peck", "Peck depth (0 = none)", 0.0, 0.0),
+        Fcheck("tip", "Allow for the drill point", True), Flen("extra", "Extra depth", 0.0, 0.0)],
+        hint="Drills every picked hole from its top to its bottom, nearest-row order."))
+    return out
+
+
+class CamWin:
+    def make_cam_actions(s, act, cact):
+        M = {n: cact(n, None, COMMANDS[n].title.title()) for n in CAM_OPS}
+        M["tools"] = act("Tool Library...", None, s.tool_library, "camtools", "End mills and drills with feeds and speeds")
+        M["gen"] = act("Generate", None, lambda: s.cam_generate_all(), "compute", "Recompute every toolpath")
+        M["sim"] = act("Simulate", None, lambda: s.cam_simulate(), "motion", "Run the tool along the toolpaths")
+        M["post"] = act("Post Process...", None, lambda: s.cam_post(), "export", "Write G-code for GRBL or a generic controller")
+        return M
+
+    def cam_ribbon(s, M, IA, C3, construct_menu):
+        return s.build_ribbon((("SETUP", (M["cam_setup"], M["tools"]), [M["cam_setup"], M["tools"]]),
+                               ("2D", (M["cam_face"], M["cam_contour"], M["cam_pocket"], M["cam_drill"]), [M["cam_face"], M["cam_contour"], M["cam_pocket"], M["cam_drill"]]),
+                               ("ACTIONS", (M["gen"], M["sim"], M["post"]), [M["gen"], M["sim"], M["post"]]),
+                               *s.inspect_groups(IA)), "MANUFACTURE", tab_names=("MANUFACTURE",), ws="MANUFACTURE")
+
+    def cam_ok(s, op):
+        v = s.vp; idx = getattr(s, "_cam_edit", None); s._cam_edit = None
+        if op["t"] == "cam_setup":
+            v.cam["setup"] = {k: op[k] for k in ("origin", "side", "top", "bottom", "safe", "retract")}; errs = v.cam_regen()
+        else:
+            op = {k: x for k, x in op.items() if k != "icon"}; op.setdefault("name", f"{CAM_NAMES[op['t']]}{sum(1 for o in v.cam['ops'] if o['t'] == op['t']) + 1}")
+            if idx is not None and idx < len(v.cam["ops"]): op["name"] = v.cam["ops"][idx].get("name", op["name"]); v.cam["ops"][idx] = op
+            else: v.cam["ops"].append(op); idx = len(v.cam["ops"]) - 1
+            errs = v.cam_regen(idx)
+        s._saved = None
+        if errs: W.QMessageBox.warning(s, "Toolpath", "\n".join(f"{v.cam['ops'][i]['name']}: {e}" for i, e in errs.items()))
+        else:
+            cl, rl, mins = path_stats([m for ms in v.cam_paths.values() for m in ms])
+            s.statusBar().showMessage(f"Toolpaths ready: {cl/1000:.2f} m of cutting, about {mins:.1f} min.", 8000)
+        s.refresh(); v.update()
+
+    def cam_preview(s, op):
+        v = s.vp
+        if op["t"] == "cam_setup": return
+        try: v.cam_paths[-1] = v.cam_generate(op)
+        except Exception as ex: v.cam_paths.pop(-1, None); raise
+
+    def cam_edit(s, i):
+        op = s.vp.cam["ops"][i]; cmd = COMMANDS[op["t"]]; vals = cmd.load(op, s.vp); s._cam_edit = i
+        s.open_cmd(op["t"], vals=vals)
+
+    def cam_generate_all(s):
+        W.QApplication.setOverrideCursor(C.Qt.WaitCursor)
+        try: errs = s.vp.cam_regen()
+        finally: W.QApplication.restoreOverrideCursor()
+        if errs: W.QMessageBox.warning(s, "Toolpath", "\n".join(f"{s.vp.cam['ops'][i]['name']}: {e}" for i, e in errs.items()))
+        s.vp.update(); return errs
+
+    def cam_simulate(s, speed=None):
+        v = s.vp; moves = [(m, v.cam_tool(v.cam["ops"][i].get("tool", 1))["dia"]/2) for i in sorted(v.cam_paths) if i >= 0 and i < len(v.cam["ops"]) for m in v.cam_paths[i]]
+        if not moves: return W.QMessageBox.information(s, "Simulate", "Add a machining operation first.")
+        pts = []
+        for (m, R), (m2, _) in zip(moves, moves[1:]):
+            a, b = np.array(m[1]), np.array(m2[1]); n = max(1, int(np.linalg.norm(b - a)/max(s.vp.span()*0.004, 0.2)))
+            pts += [(tuple(a + (b - a)*k/n), R) for k in range(n)]
+        s._sim = {"pts": pts, "i": 0, "step": speed or max(1, len(pts)//600)}
+        if not hasattr(s, "_simt"): s._simt = C.QTimer(s); s._simt.timeout.connect(s.cam_sim_tick)
+        s._simt.start(16); return len(pts)
+    def cam_sim_tick(s):
+        v = s.vp; m = s._sim
+        if m["i"] >= len(m["pts"]) or v.cmd: s._simt.stop(); v.cam_sim = None; v.update(); return
+        p, R = m["pts"][m["i"]]; v.cam_sim = {"p": p, "r": R}; m["i"] += m["step"]; v.update()
+
+    def cam_post(s, path=None, flavor=None):
+        v = s.vp
+        if not v.cam["ops"]: return W.QMessageBox.information(s, "Post Process", "Add a machining operation first.")
+        errs = v.cam_regen()
+        if errs: return W.QMessageBox.warning(s, "Post Process", "\n".join(f"{v.cam['ops'][i]['name']}: {e}" for i, e in errs.items()))
+        if flavor is None:
+            items = ["GRBL (hobby CNC routers)", "Generic (Fanuc-style, with tool changes)"]
+            it, ok = W.QInputDialog.getItem(s, "Post Process", "Controller:", items, 0, False)
+            if not ok: return
+            flavor = "grbl" if it.startswith("GRBL") else "generic"
+        if not path:
+            path, _ = W.QFileDialog.getSaveFileName(s, "Save G-code", f"{s.export_name()}.nc", "G-code (*.nc *.gcode *.tap)")
+            if not path: return
+        txt = post_gcode(v.cam, v.cam_paths, v.cam_wcs(), flavor, s.export_name())
+        open(path, "w", encoding="utf-8").write(txt)
+        cl, rl, mins = path_stats([m for ms in v.cam_paths.values() for m in ms])
+        s.statusBar().showMessage(f"G-code saved ({txt.count(chr(10))} lines, about {mins:.1f} min).", 8000); return path
+
+    def tool_library(s):
+        v = s.vp; d = W.QDialog(s); d.setWindowTitle("Tool Library"); d.resize(860, 320); lay = W.QVBoxLayout(d)
+        cols = [("n", "T"), ("name", "Name"), ("type", "Type"), ("dia", "Ø mm"), ("flutes", "Flutes"), ("rpm", "RPM"), ("feed", "Feed mm/min"),
+                ("plunge", "Plunge mm/min"), ("stepdown", "Stepdown mm")]
+        t = W.QTableWidget(len(v.cam["tools"]), len(cols)); t.setHorizontalHeaderLabels([c[1] for c in cols])
+        def fill():
+            t.setRowCount(len(v.cam["tools"]))
+            for r, tool in enumerate(v.cam["tools"]):
+                for c, (k, _) in enumerate(cols): t.setItem(r, c, W.QTableWidgetItem(str(tool[k])))
+        fill(); t.resizeColumnsToContents(); lay.addWidget(t)
+        row = W.QHBoxLayout(); add = W.QPushButton("Add tool"); rm = W.QPushButton("Remove tool"); row.addWidget(add); row.addWidget(rm); row.addStretch(1); lay.addLayout(row)
+        def read():
+            out = []
+            for r in range(t.rowCount()):
+                tool = {}
+                for c, (k, _) in enumerate(cols):
+                    txt = t.item(r, c).text() if t.item(r, c) else ""
+                    tool[k] = txt if k in ("name", "type") else (int(float(txt or 0)) if k in ("n", "flutes", "rpm") else float(txt or 0))
+                out.append(tool)
+            return out
+        def add_tool():
+            v.cam["tools"] = read(); n = max([x["n"] for x in v.cam["tools"]] + [0]) + 1
+            v.cam["tools"].append({"n": n, "name": "New tool", "type": "flat", "dia": 4.0, "flutes": 2, "rpm": 12000, "feed": 700.0, "plunge": 250.0, "stepdown": 1.0}); fill()
+        def rm_tool():
+            r = t.currentRow()
+            if r >= 0: v.cam["tools"] = read(); del v.cam["tools"][r]; fill()
+        add.clicked.connect(add_tool); rm.clicked.connect(rm_tool)
+        bb = W.QDialogButtonBox(W.QDialogButtonBox.Ok | W.QDialogButtonBox.Cancel); bb.accepted.connect(d.accept); bb.rejected.connect(d.reject); lay.addWidget(bb)
+        if d.exec():
+            try: v.cam["tools"] = read(); s._saved = None; v.cam_regen(); v.update()
+            except Exception as ex: W.QMessageBox.warning(s, "Tool Library", f"Couldn't read the table: {ex}")
+
+    # ---- browser ----
+    def cam_browser(s, root, item, folders):
+        v = s.vp
+        if not v.cam["ops"]: return
+        cf = item(root, "Manufacture", "folder", "grp:cam", True); folders.append(cf)
+        st_ = v.cam["setup"]; it = item(cf, f"Setup (origin: {st_['origin']})", "camsetup", "camsetup", True)
+        for i, op in enumerate(v.cam["ops"]):
+            moves = v.cam_paths.get(i) or []; cl, rl, mins = path_stats(moves)
+            it = item(cf, f"{op.get('name')}  (T{op.get('tool', 1)})", op["t"].replace("cam_", "cam"), f"cam:{i}", op.get("visible", True))
+            it.setToolTip(0, f"{cl/1000:.2f} m cutting · ~{mins:.1f} min" if moves else "No toolpath - right-click to edit")
+    def cam_vis(s, ref, on):
+        v = s.vp
+        if ref == "grp:cam": v.show_paths = on
+        elif ref.startswith("cam:"): v.cam["ops"][int(ref[4:])]["visible"] = on
+        elif ref == "camsetup": pass
+        else: return False
+        v.update(); return True
+    def cam_browser_menu(s, m, ref):
+        v = s.vp
+        if ref == "camsetup":
+            m.addAction("Edit setup...", lambda: s.open_cmd("cam_setup", vals=dict(v.cam["setup"]))); return True
+        if ref.startswith("cam:"):
+            i = int(ref[4:])
+            m.addAction("Edit...", lambda: s.cam_edit(i)); m.addAction("Regenerate", lambda: (v.cam_regen(i), v.update(), s.refresh()))
+            m.addAction("Delete", lambda: s.cam_delete(i)); return True
+        return False
+    def cam_delete(s, i):
+        v = s.vp; del v.cam["ops"][i]; v.cam_paths = {}; v.cam_regen(); s._saved = None; s.refresh(); v.update()
 COMMANDS = make_commands()
 COMMANDS.update(make_sketch_commands())
+COMMANDS.update(make_surface_commands())
+COMMANDS.update(make_inspect_commands())
+COMMANDS.update(make_mesh_commands())
+COMMANDS.update(make_asm_commands())
+COMMANDS.update(make_sheet_commands())
+COMMANDS.update(make_plastic_commands())
+COMMANDS.update(make_cam_commands())
 OP_TO_CMD = {"extrude": "extrude", "revolve": "revolve", "sweep": "sweep", "loft": "loft", "rib": "rib", "web": "web", "emboss": "emboss",
              "hole": "hole", "thread2": "thread", "rpattern": "rpattern", "cpattern": "cpattern", "ppattern": "ppattern", "mirror": "mirror",
              "thicken": "thicken", "bfill": "bfill", "presspull": "presspull", "fillet2": "fillet", "chamfer2": "chamfer", "fillet": "fillet",
              "chamfer": "chamfer", "shell": "shell", "draft": "draft", "scale": "scale", "combine": "combine", "offsetface": "offsetface",
              "replaceface": "replaceface", "splitface": "splitface", "splitbody": "splitbody", "move2": "move2", "align": "align",
              "material": "material", "appearance": "appearance", "defeature": "defeature"}
+OP_TO_CMD.update({n: n for n in SURF_OPS})
+OP_TO_CMD.update({n: n for n in MESH_OPS if n in COMMANDS})
+OP_TO_CMD.update({"comp": "comp", "joint": "joint"})
+OP_TO_CMD.update({n: n for n in SM_OPS})
+OP_TO_CMD.update({n: n for n in PL_OPS})
 PRIM_TO_CMD = {"box": "box", "cyl": "cylinder", "sphere": "sphere", "torus": "torus", "coil": "coil", "pipe": "pipe"}
 
 def cmd_for_op(op):
@@ -8790,6 +14167,7 @@ class CmdForm(W.QFrame):
         body = W.QWidget(); bl = W.QVBoxLayout(body); bl.setContentsMargins(12, 10, 12, 8); bl.setSpacing(8); sa.setWidget(body); lay.addWidget(sa)
         s.scroll = sa; s.form = W.QFormLayout(); s.form.setHorizontalSpacing(10); s.form.setVerticalSpacing(7); bl.addLayout(s.form)
         s.vals, s.widgets, s.active = {}, {}, None
+        s.vals["_x"] = {k: list(x) for k, x in (vals.get("_x") or {}).items()}
         for f in cmd.fields: s.add_field(f, vals.get(f["key"], f["default"]))
         if cmd.hint:
             h = W.QLabel(cmd.hint); h.setObjectName("hint"); h.setWordWrap(True); bl.addWidget(h)
@@ -8812,10 +14190,14 @@ class CmdForm(W.QFrame):
             x = W.QToolButton(); x.setText("✕"); x.setObjectName("selx"); x.setToolTip("Clear"); x.clicked.connect(lambda _=False, k=k: s.clear(k))
             h.addWidget(b, 1); h.addWidget(x); s.widgets[k] = (w, b); s.vals[k] = list(val or [])
         elif t in ("len", "ang", "num", "int"):
-            if t == "len": b = LengthSpin(f["lo"], f["hi"])
+            x = s.vals["_x"].get(k)
+            if x:
+                try: val = eval_expr(x[0], s.app.vp.dim_env(), x[1])
+                except Exception: s.vals["_x"].pop(k, None)
+            if t == "len": b = ExprLenSpin(f["lo"], f["hi"]); b.expr_setup(s, k, "len")
             elif t == "int": b = W.QSpinBox(); b.setRange(f["lo"], f["hi"])
             else:
-                b = W.QDoubleSpinBox(); b.setRange(f["lo"], f["hi"]); b.setDecimals(2 if t == "ang" else f["dec"])
+                b = ExprNumSpin(); b.expr_setup(s, k, "ang"); b.setRange(f["lo"], f["hi"]); b.setDecimals(2 if t == "ang" else f["dec"])
                 b.setSuffix(" °" if t == "ang" else f.get("suffix", ""))
             b.setKeyboardTracking(False); b.setValue(val); b.valueChanged.connect(lambda v, k=k: s.set_val(k, v)); s.widgets[k] = (b, b); s.vals[k] = val
         elif t == "combo":
@@ -8854,6 +14236,7 @@ class CmdForm(W.QFrame):
     def set_val(s, k, v):
         s.vals[k] = v; s.refresh_rows(); s.app.schedule_preview()
     def set_value(s, k, v):
+        s.vals.get("_x", {}).pop(k, None)
         w = s.widgets[k][1]; w.blockSignals(True); w.setValue(v); w.blockSignals(False); s.vals[k] = v; s.app.schedule_preview()
 
     # ---- selection boxes ----
@@ -8897,6 +14280,7 @@ class SolidUI:
     def open_cmd(s, name, edit_index=None, vals=None):
         v = s.vp
         if s.busy() or s._play.isActive(): return
+        if v.meas is not None: s.measure_stop()
         cmd = COMMANDS[name]
         if cmd.group == "SKETCH":
             if not v.skedit: return s.statusBar().showMessage("That tool works inside a sketch - start or edit a sketch first.", 6000)
@@ -8923,7 +14307,8 @@ class SolidUI:
         if v.sel: pools.append(("edge", [("edge", bi, ei) for bi, ei in sorted(v.sel)]))
         if v.sel_face:
             bi, fid = v.sel_face; pools.append(("face", [("face", bi, fid)]))
-        if v.sel_body is not None and v.sel_body < len(v.bodies): pools.append(("body", [("body", v.sel_body)]))
+        if v.sel_body is not None and v.sel_body < len(v.bodies):
+            pools.append(("body", [("body", i) for i in sorted(v.msel | {v.sel_body}) if i < len(v.bodies)]))
         for f in cmd.fields:
             if f["type"] != "sel" or f["key"] == "bodies": continue
             for kind, refs in pools:
@@ -8951,6 +14336,13 @@ class SolidUI:
             v.preview = None; form.status.setText(str(ex)); form.ok.setEnabled(False); v.update(); return
         h = form.cmd.handle(form.vals, v) if form.cmd.handle else None
         v.handle = dict(o=h[0], d=h[1], key=h[2], val=form.vals[h[2]]) if h else None
+        if op.get("t") in ANALYSIS_OPS:
+            v.preview = None; v.analysis_preview(op); form.status.setText(""); form.ok.setEnabled(True); v.update(); return
+        if op.get("t") in CAM_OPS:
+            v.preview = None
+            try: s.cam_preview(op); form.status.setText(""); form.ok.setEnabled(True)
+            except Exception as ex: form.status.setText(str(ex)); form.ok.setEnabled(False)
+            v.update(); return
         try:
             W.QApplication.setOverrideCursor(C.Qt.BusyCursor); v.preview = v.dry_run(op); form.status.setText(""); form.ok.setEnabled(True)
             if op["t"] == "bfill":
@@ -8966,10 +14358,10 @@ class SolidUI:
     def close_cmd(s):
         v = s.vp
         if v.cmd: v.cmd.hide(); v.cmd.deleteLater()
-        v.cmd = v.preview = v.handle = v.cmd_hover = None; v.type_buf = None; v.update()
+        v.cmd = v.preview = v.handle = v.cmd_hover = None; v.type_buf = None; v.ana_prev = None; v.cam_paths.pop(-1, None); v.update()
 
     def cmd_cancel(s):
-        v = s.vp; form = v.cmd; s.close_cmd()
+        v = s.vp; form = v.cmd; s.close_cmd(); s._ana_edit = None; s._cam_edit = None
         if form and form.edit_index and s._edit_back is not None: v.restore(s._edit_back)
         s._edit_back = None; s.refresh()
 
@@ -8980,6 +14372,8 @@ class SolidUI:
         except Exception as ex: form.status.setText(str(ex)); return
         idx, back = form.edit_index, s._edit_back
         s.close_cmd(); s._edit_back = None
+        if op.get("t") in ANALYSIS_OPS: s.analysis_ok(op); s.refresh(); return
+        if op.get("t") in CAM_OPS: v.cam_paths.pop(-1, None); s.cam_ok(op); return
         if op.get("t") == "skmod":
             try:
                 W.QApplication.setOverrideCursor(C.Qt.WaitCursor); v.exec_op(op); v.sk_commit(v.esk.geo, solve=False)
@@ -9012,7 +14406,7 @@ class SolidUI:
         v = s.vp
         if len(v.states) < 2 or s.busy(): return
         try:
-            W.QApplication.setOverrideCursor(C.Qt.WaitCursor); v.replay_edit(1, v.states[1]["op"])
+            W.QApplication.setOverrideCursor(C.Qt.WaitCursor); v.replay_edit(1, v.states[1]["op"], strict=False)
             s.statusBar().showMessage(f"Recomputed {len(v.states) - 1} steps.", 5000)
         except Exception as ex: W.QMessageBox.warning(s, "Compute all", str(ex))
         finally: W.QApplication.restoreOverrideCursor(); s.refresh()
@@ -9030,7 +14424,7 @@ class SolidUI:
 #  Sketch environment: window side (contextual ribbon, Sketch Palette, dialogs, parameters, inserts)
 # ---------------------------------------------------------------------------------------------------------------
 class SketchPalette(W.QFrame):
-    """fission's Sketch Palette: line type, display toggles, polygon sides / conic rho, status, Finish Sketch."""
+    """Fusion's Sketch Palette: line type, display toggles, polygon sides / conic rho, status, Finish Sketch."""
     OPTS = (("grid", "Sketch Grid"), ("snap", "Snap"), ("slice", "Slice"), ("profiles", "Show Profile"), ("points", "Show Points"),
             ("dims", "Show Dimensions"), ("cons", "Show Constraints"), ("proj", "Show Projected Geometries"), ("sk3d", "3D Sketch"))
     def __init__(s, win):
@@ -9201,7 +14595,7 @@ class SketchWin:
         tabs = W.QHBoxLayout(); tabs.setSpacing(0)
         for name, on in (("SOLID", False), ("SKETCH", True)):
             b = s.tbtn("tab", text=name); b.setCheckable(True); b.setChecked(on)
-            if not on: b.clicked.connect(lambda: (s.vp.sk_finish(),))
+            if not on: b.clicked.connect(lambda: (s.vp.sk_finish(),)); s.sk_ws_tab = b
             else: b.setStyleSheet("color:#0b4f7a")
             tabs.addWidget(b)
         tabs.addStretch(1); right.addLayout(tabs)
@@ -9248,7 +14642,7 @@ class SketchWin:
 
     # ---- mode switching ----
     def on_sk_mode(s, on):
-        s.rib_stack.setCurrentIndex(1 if on else 0); s.palette.setVisible(on)
+        s.rib_stack.setCurrentIndex(1 if on else s.TAB_PAGE.get(getattr(s, "cur_tab", "SOLID"), 0)); s.palette.setVisible(on)
         if on: s.palette.sync(); s.place_palette(); s.palette.raise_()
         s.sync_sk_tools(); s.refresh()
 
@@ -9442,7 +14836,7 @@ class SketchWin:
         if params_changed: first = 1
         if first is None or len(v.states) < 2: s.refresh(); return
         try:
-            W.QApplication.setOverrideCursor(C.Qt.WaitCursor); back = v.pos; v.replay_edit(first, v.states[first]["op"]); v.restore(back)
+            W.QApplication.setOverrideCursor(C.Qt.WaitCursor); back = v.pos; v.replay_edit(first, v.states[first]["op"], strict=False); v.restore(back)
             s.statusBar().showMessage("Parameters applied - the design was recomputed.", 6000)
         except Exception as ex: W.QMessageBox.warning(s, "Parameters", str(ex))
         finally: W.QApplication.restoreOverrideCursor(); s.refresh(); v.update()
@@ -9566,7 +14960,7 @@ class SketchWin:
         elif ref.startswith("cv:"):
             ci = int(ref[3:]); i = s.canvas_step(ci)
             if i is not None: m.addAction("Edit / Calibrate...", lambda: s.edit_canvas(i))
-        else: return
+        elif not (s.insp_browser_menu(m, ref) or s.asm_browser_menu(m, ref) or s.cam_browser_menu(m, ref)): return
         m.exec(s.tree.viewport().mapToGlobal(pos))
 
     def canvas_step(s, ci):
@@ -9638,19 +15032,19 @@ def light_palette():
             p.setColor(grp, role, G.QColor(col))
     return p
 
-class Fission(SketchWin, SolidUI, W.QMainWindow):
-    TABS = ("SOLID",)
-    # Other workspaces are hidden while the solid tools are the focus; put them back in TABS to show them again:
+class Fission(CamWin, RenderWin, SheetWin, AsmWin, TimelineWin, MeshWin, InspectWin, SketchWin, SolidUI, W.QMainWindow):
+    TABS = ("SOLID", "SURFACE", "MESH", "SHEET METAL", "PLASTIC")
+    # Other workspaces are hidden while the solid / surface tools are the focus; put them back in TABS to show them again:
     # TABS = ("SOLID", "SURFACE", "MESH", "SHEET METAL", "PLASTIC", "UTILITIES")
     def __init__(s):
         app = W.QApplication.instance()
         if app is not None:
-            if app.style().name().lower() != "fission": app.setStyle("fission")
+            if app.style().name().lower() != "fusion": app.setStyle("Fusion")
             app.setPalette(light_palette())
             try: G.QGuiApplication.styleHints().setColorScheme(C.Qt.ColorScheme.Light)
             except Exception: pass
         super().__init__(); s.setWindowTitle("Fission"); s.resize(1400, 880); s.setStyleSheet(style(ui_assets()))
-        s.vp = Viewport(); s.vp.changed.connect(s.refresh); s._tl_key = None; s.tools = {}; s._play = C.QTimer(s)
+        s.vp = Viewport(); s.vp.changed.connect(s.refresh); s._tl_key = None; s.tools = {}; s._play = C.QTimer(s); s.tl_init()
         s._play.timeout.connect(s.play_step)
         s.vp.msg.connect(lambda m: s.statusBar().showMessage(m, 9000)); s.build_panels()
         for name in ("move", "gear", "thread", "pattern", "edge_op", "extrude", "revolve", "drawing", "compute_all", "delete_step",
@@ -9685,6 +15079,15 @@ class Fission(SketchWin, SolidUI, W.QMainWindow):
         mv2, aln = cact("move2", None, "Move / Copy (points, axis)"), cact("align", None, "Align")
         dlf, mat, app_ = cact("defeature", None, "Delete Faces"), cact("material", None, "Physical Material"), cact("appearance", None, "Appearance")
         cmp_ = act("Compute All", None, s.compute_all, "compute", "Recompute every timeline step")
+        IA = s.make_inspect_actions(act); s.IA = IA
+        MA = s.make_mesh_actions(act, cact); s.MA = MA
+        AA = s.make_asm_actions(act, cact); s.AA = AA
+        SX = s.make_sheet_actions(act, cact); s.SX = SX
+        PLx = {n: cact(n, None, COMMANDS[n].title.title()) for n in PL_OPS}; s.PLx = PLx
+        RX = {"render": act("Render...", None, s.render_dialog, "render", "High-resolution picture with lighting, reflections and shadows"),
+              "turn": act("Turntable...", None, s.render_dialog, "turntable", "PNG frames of the model spinning"),
+              "story": act("Storyboard", None, s.open_story, "explode", "Explode the assembly step by step, play it, export frames")}
+        CMx = s.make_cam_actions(act, cact); s.CMx = CMx
         cons = {n[2:]: cact(n, None, COMMANDS[n].title.title()) for n in COMMANDS if n.startswith("c_")}
         drw = act("Drawing  (D)", None, s.drawing, "drawing", "3-view engineering drawing (PDF / SVG / DXF).")
         s.path, s._saved = None, None
@@ -9710,15 +15113,47 @@ class Fission(SketchWin, SolidUI, W.QMainWindow):
                                       ("SKETCH", (T["line"], T["rect2"], T["circle"]), [T["pick"], None, T["line"], T["rect2"], T["circle"], None, SA["dxf"], SA["svg"]]),
                                       ("MODIFY", (pp, fil, cha, shl, cmb, mov), modify_menu),
                                       ("CONSTRUCT", (C3["plane_offset"], C3["plane_mid"], C3["axis_2pts"]), construct_menu),
-                                      ("INSERT", (SA["canvas"], SA["decal"]), [SA["canvas"], SA["decal"], None, SA["dxf"], SA["svg"]]),
+                                      ("INSERT", (SA["canvas"], SA["decal"]), [SA["canvas"], SA["decal"], None, SA["dxf"], SA["svg"], None, MA["insert"], MA["cadimport"]]),
+                                      s.asm_group(AA),
+                                      *s.inspect_groups(IA),
                                       ("DRAWING", (drw,), None))))
-        s.rib_stack.addWidget(s.build_sketch_ribbon()); col.addWidget(s.rib_stack)
+        s.rib_stack.addWidget(s.build_sketch_ribbon())
+        sx = {n: cact(n, None, COMMANDS[n].title.replace(" (SURFACE)", "").title()) for n in SURF_OPS}
+        sx["s_delface"].setText("Delete Face")
+        s.surf_acts = sx
+        s_create_menu = [T["pick"], None, sx["s_extrude"], sx["s_revolve"], sx["s_sweep"], sx["s_loft"], None, sx["patch"], sx["ruled"], sx["s_offset"],
+                         None, thk, bfl, None, mir, ("Pattern", [rpat, pat, ppat])]
+        s_modify_menu = [pp, fil, cha, None, sx["trim"], sx["untrim"], sx["s_extend"], sx["stitch"], sx["unstitch"], sx["revnormal"], sx["s_delface"],
+                         None, rpf, spf, spb, None, mov, mv2, aln, scl, None, mat, app_, None, SA["params"], cmp_]
+        s.rib_stack.addWidget(s.build_ribbon((("CREATE", (T["pick"], sx["s_extrude"], sx["s_revolve"], sx["s_sweep"], sx["s_loft"], sx["patch"], sx["ruled"],
+                                                      sx["s_offset"], thk, bfl), s_create_menu),
+                                      ("MODIFY", (fil, sx["trim"], sx["untrim"], sx["s_extend"], sx["stitch"], sx["unstitch"], sx["revnormal"], sx["s_delface"]),
+                                       s_modify_menu),
+                                      ("CONSTRUCT", (C3["plane_offset"], C3["plane_mid"], C3["axis_2pts"]), construct_menu),
+                                      ("INSERT", (SA["canvas"], SA["decal"]), [SA["canvas"], SA["decal"], None, SA["dxf"], SA["svg"], None, MA["insert"], MA["cadimport"]]), *s.inspect_groups(IA)), "SURFACE"))
+        s.rib_stack.addWidget(s.mesh_ribbon(MA, T, C3, construct_menu, IA, mv2, aln, scl, mat, app_))
+        s.rib_stack.addWidget(s.sheet_ribbon(SX, T, C3, construct_menu, IA, fil, mov, mat, app_))
+        s.rib_stack.addWidget(s.build_ribbon((("CREATE", (T["pick"], ext, PLx["boss"], PLx["lipgroove"], PLx["snapfit"], rib, web),
+                                                [T["pick"], None, ext, rev, None, PLx["boss"], PLx["lipgroove"], PLx["snapfit"], rib, web, hole]),
+                                               ("MODIFY", (shl, dft, fil, cmb), [shl, dft, fil, cha, cmb, None, mov, mat, app_]),
+                                               ("CONSTRUCT", (C3["plane_offset"], C3["plane_mid"], C3["axis_2pts"]), construct_menu),
+                                               *s.inspect_groups(IA)), "PLASTIC"))
+        s.rib_stack.addWidget(s.build_ribbon((("SETUP", (mat, app_), [mat, app_]), ("RENDER", (RX["render"], RX["turn"]), [RX["render"], RX["turn"]]),
+                                               *s.inspect_groups(IA)), "RENDER", tab_names=("RENDER",), ws="RENDER"))
+        s.rib_stack.addWidget(s.build_ribbon((("STORYBOARD", (RX["story"],), [RX["story"]]), ("PUBLISH", (RX["render"],), [RX["render"]])),
+                                             "ANIMATION", tab_names=("ANIMATION",), ws="ANIMATION"))
+        s.rib_stack.addWidget(s.cam_ribbon(CMx, IA, C3, construct_menu))
+        pages = [s.rib_stack.widget(i) for i in range(s.rib_stack.count())]
+        for p_ in pages: s.rib_stack.removeWidget(p_)
+        for p_ in pages: s.rib_stack.addWidget(RibbonFit(p_))
+        s.rib_stack.setSizePolicy(W.QSizePolicy.Ignored, W.QSizePolicy.Fixed)
+        s.cur_tab = "SOLID"; col.addWidget(s.rib_stack)
         s.vp.cmd_key.connect(lambda ok: s.cmd_ok() if ok else s.cmd_cancel())
         s.split = W.QSplitter(); s.split.setChildrenCollapsible(False)
         s.split.addWidget(s.build_browser()); s.split.addWidget(s.vp)
         s.palette.raise_(); s.split.setStretchFactor(1, 1); s.split.setSizes([260, 1100]); s.split.setHandleWidth(1)
         col.addWidget(s.split, 1); col.addWidget(s.build_timeline())
-        s.build_navbar(); s.refresh()
+        s.build_navbar(); s.refresh(); s.add_command_search(); s.insp_setup()
         s.statusBar().showMessage("Tip: press S and click the ground, the front / right plane or a flat face to start a sketch.")
 
     # ---- chrome ----
@@ -9730,13 +15165,19 @@ class Fission(SketchWin, SolidUI, W.QMainWindow):
         return b
 
     def build_topbar(s):
-        bar = W.QFrame(); bar.setObjectName("topbar"); h = W.QHBoxLayout(bar); h.setContentsMargins(10, 5, 10, 0); h.setSpacing(2)
+        bar = W.QFrame(); bar.setObjectName("topbar"); h = W.QHBoxLayout(bar); h.setContentsMargins(10, 5, 10, 0); h.setSpacing(2); s._topbar_h = h
         fb = s.tbtn("topbtn", "file", size=20, tip="File"); fb.setPopupMode(W.QToolButton.InstantPopup)
         m = W.QMenu(fb)
         for a in (s.a_new, s.a_open, s.a_save, s.a_saveas): m.addAction(a)
+        m.addSeparator(); m.addAction(icon("meshimport"), "Insert Mesh (STL, OBJ, 3MF)...", s.insert_mesh)
+        m.addAction(icon("cadimport"), "Import CAD File (STEP, IGES, BREP)...", s.import_cad)
         m.addSeparator(); m.addAction("New Drawing (3 views)...", s.drawing); m.addSeparator()
+        m.addAction("Export STEP...", lambda: s.export_cad("STEP")); m.addAction("Export IGES...", lambda: s.export_cad("IGES"))
+        m.addAction("Export BREP...", lambda: s.export_cad("BREP")); m.addAction("Export STL...", s.export_stl)
         m.addAction("Export FreeCAD (.FCStd)...", s.export_fcstd); m.addAction("Export OBJ...", s.export_obj)
-        m.addAction("Export 3MF...", s.export_3mf); m.addSeparator(); m.addAction("Quit", s.close); fb.setMenu(m); h.addWidget(fb)
+        m.addAction("Export 3MF...", s.export_3mf); m.addSeparator()
+        m.addAction("New Window", s.new_window); s.recent_menu = m.addMenu("Open Recent"); m.addAction("Preferences...", s.prefs_dialog)
+        m.addSeparator(); m.addAction("Quit", s.close); fb.setMenu(m); h.addWidget(fb)
         b = s.tbtn("topbtn", size=20); b.setDefaultAction(s.a_save); b.setIconSize(C.QSize(20, 20)); b.setToolTip("Save  (Ctrl+S)"); h.addWidget(b)
         s.b_undo = s.tbtn("topbtn", size=20); s.b_undo.setDefaultAction(s.a_undo); s.b_undo.setIconSize(C.QSize(20, 20)); h.addWidget(s.b_undo)
         s.b_redo = s.tbtn("topbtn", size=20); s.b_redo.setDefaultAction(s.a_redo); s.b_redo.setIconSize(C.QSize(20, 20)); h.addWidget(s.b_redo)
@@ -9778,11 +15219,12 @@ class Fission(SketchWin, SolidUI, W.QMainWindow):
         data = {"app": "Fission", "format": 2, "units": DISPLAY["unit"], "pos": v.pos, "params": v.params,
                 "camera": [v.yaw, v.pitch, v.dist, list(v.target.t())],
                 "steps": [{"kind": stt["kind"], "op": enc(stt["op"])} for stt in v.states[1:]]}
+        data.update(v.insp_save())
         try:
             with open(path, "w", encoding="utf-8") as f: json.dump(data, f, indent=1)
         except Exception as ex:
             W.QMessageBox.warning(s, "Save failed", str(ex)); return False
-        s.path, s._saved = path, (id(v.states[-1]), len(v.states)); s.update_title()
+        s.path, s._saved = path, (id(v.states[-1]), len(v.states)); s.update_title(); s.add_recent(path)
         s.statusBar().showMessage(f"Saved {path}", 6000); return True
     def maybe_save(s):
         if not s.dirty(): return True
@@ -9808,21 +15250,27 @@ class Fission(SketchWin, SolidUI, W.QMainWindow):
         finally: W.QApplication.restoreOverrideCursor()
         cam = data.get("camera")
         if cam: v = s.vp; v.yaw, v.pitch, v.dist, v.target = cam[0], cam[1], cam[2], V(*cam[3])
+        s.vp.insp_load(data); s.add_recent(path)
         s.path = path; s._saved = (id(s.vp.states[-1]), len(s.vp.states)) if not fail else None
         s.refresh(); s.vp.update()
-        if fail: W.QMessageBox.warning(s, "Open", f"Step {fail[0]} ({fail[1]}) could not be rebuilt: {fail[2]}\nThe design was loaded up to the step before it.")
+        if fail: W.QMessageBox.warning(s, "Open", f"{len(fail)} step(s) could not be rebuilt and are marked red in the timeline:\n" +
+                                       "\n".join(f"  step {f[0]} ({f[1]}): {f[2]}" for f in fail[:6]) + "\nThe rest of the design was rebuilt.")
     def closeEvent(s, e):
-        if s.maybe_save(): e.accept()
+        if s.maybe_save(): s.autosave_cleanup(); e.accept()
         else: e.ignore()
 
-    def build_ribbon(s, groups):
+    def build_ribbon(s, groups, cur="SOLID", tab_names=None, ws="DESIGN"):
         rib = W.QFrame(); rib.setObjectName("ribbon"); h = W.QHBoxLayout(rib); h.setContentsMargins(10, 6, 10, 4); h.setSpacing(12)
-        mode = s.tbtn("mode", text="DESIGN  ▾"); mode.setToolButtonStyle(C.Qt.ToolButtonTextOnly); mode.setPopupMode(W.QToolButton.InstantPopup)
-        mm = W.QMenu(mode); a = mm.addAction("Design"); a.setCheckable(True); a.setChecked(True); mode.setMenu(mm); h.addWidget(mode, 0, C.Qt.AlignTop)
+        mode = s.tbtn("mode", text=f"{ws}  ▾"); mode.setToolButtonStyle(C.Qt.ToolButtonTextOnly); mode.setPopupMode(W.QToolButton.InstantPopup)
+        mm = W.QMenu(mode)
+        for wn in ("DESIGN", "RENDER", "ANIMATION", "MANUFACTURE"):
+            a = mm.addAction(wn.title()); a.setCheckable(True); a.setChecked(wn == ws); a.triggered.connect(lambda _=False, wn=wn: s.set_workspace(wn))
+        mode.setMenu(mm); h.addWidget(mode, 0, C.Qt.AlignTop)
         right = W.QVBoxLayout(); right.setSpacing(0); h.addLayout(right, 1)
-        tabs = W.QHBoxLayout(); tabs.setSpacing(0); s.tab_group = W.QButtonGroup(s); s.tab_btns = {}
-        for name in s.TABS:
-            b = s.tbtn("tab", text=name); b.setCheckable(True); b.setChecked(name == "SOLID"); s.tab_group.addButton(b); s.tab_btns[name] = b
+        tabs = W.QHBoxLayout(); tabs.setSpacing(0); grp = W.QButtonGroup(rib)
+        if not hasattr(s, "tab_btns"): s.tab_btns = {}
+        for name in (tab_names or s.TABS):
+            b = s.tbtn("tab", text=name); b.setCheckable(True); b.setChecked(name == cur); grp.addButton(b); s.tab_btns.setdefault(name, []).append(b)
             b.clicked.connect(lambda _=False, n=name: s.tab_clicked(n)); tabs.addWidget(b)
         tabs.addStretch(1); right.addLayout(tabs)
         row = W.QHBoxLayout(); row.setSpacing(0); right.addLayout(row)
@@ -9846,9 +15294,19 @@ class Fission(SketchWin, SolidUI, W.QMainWindow):
         row.addStretch(1)
         return rib
 
+    TAB_PAGE = {"SOLID": 0, "SURFACE": 2, "MESH": 3, "SHEET METAL": 4, "PLASTIC": 5, "RENDER": 6, "ANIMATION": 7, "MANUFACTURE": 8}
     def tab_clicked(s, name):
-        if name != "SOLID":
-            s.statusBar().showMessage(f"{name.title()} tools aren't available in Fission yet.", 5000); s.tab_btns["SOLID"].setChecked(True)
+        if name not in s.TAB_PAGE:
+            s.statusBar().showMessage(f"{name.title()} tools aren't available in Fission yet.", 5000); name = getattr(s, "cur_tab", "SOLID")
+        s.cur_tab = name
+        for n, bs in s.tab_btns.items():
+            for b in bs: b.setChecked(n == name)
+        if hasattr(s, "sk_ws_tab"): s.sk_ws_tab.setText(name)
+        if not s.vp.skedit: s.rib_stack.setCurrentIndex(s.TAB_PAGE[name])
+        if name == "MESH": s.statusBar().showMessage("Mesh tools: Insert an STL / OBJ / 3MF (or Tessellate a solid), then repair, cut, "
+                                                     "smooth, reduce, section or convert it to a solid.", 8000)
+        if name == "SURFACE": s.statusBar().showMessage("Surface tools: open (zero-thickness) bodies - extrude curves, loft, patch, trim, "
+                                                        "extend and stitch them; Stitch a closed set into a solid or Thicken it.", 8000)
 
     def build_browser(s):
         s.left = W.QFrame(); s.left.setObjectName("browser"); s.left.setMinimumWidth(180)
@@ -9868,7 +15326,7 @@ class Fission(SketchWin, SolidUI, W.QMainWindow):
         s.left.setMinimumWidth(180 if on else 0); s.left.setMaximumWidth(16777215 if on else 38)
         if on: s.split.setSizes([260, max(1, s.width() - 260)])
 
-    def build_timeline(s):
+    def build_timeline_v6(s):
         bar = W.QFrame(); bar.setObjectName("timeline"); bar.setFixedHeight(48)
         h = W.QHBoxLayout(bar); h.setContentsMargins(10, 4, 10, 4); h.setSpacing(0); s.tlb = {}
         for ic, tip, fn in (("first", "Go to the beginning", lambda: s.goto(0)), ("prev", "Step back (Ctrl+Z)", s.undo),
@@ -9886,7 +15344,7 @@ class Fission(SketchWin, SolidUI, W.QMainWindow):
                  fillet="Fillet", chamfer="Chamfer", move="Move", pattern="Circular pattern", gear="Spur gear",
                  thread="Thread", delete="Delete")
 
-    def rebuild_timeline(s):
+    def rebuild_timeline_v6(s):
         v = s.vp; key = (len(v.states), v.pos, id(v.states[-1]))
         if key == s._tl_key: return
         s._tl_key = key
@@ -9894,6 +15352,9 @@ class Fission(SketchWin, SolidUI, W.QMainWindow):
             w = s.tl.takeAt(0).widget()
             if w: w.deleteLater()
         for i, stt in enumerate(v.states[1:], 1):
+            if (stt.get("op") or {}).get("quiet"):                     # renames etc.: undoable, but no icon
+                if i == v.pos: mk = W.QFrame(); mk.setObjectName("tlmarker"); mk.setFixedSize(3, 30); s.tl.addWidget(mk)
+                continue
             b = TLStep(lambda j=i: s.goto(j), lambda j=i: s.edit_step(j), lambda j=i: s.delete_step(j)); b.setObjectName("tlstep"); b.setFixedSize(30, 32); b.setIconSize(C.QSize(24, 24))
             ic = icon(stt["kind"], 24)
             b.setIcon(ic if i <= v.pos else G.QIcon(ic.pixmap(24, 24, G.QIcon.Disabled)))
@@ -9925,6 +15386,9 @@ class Fission(SketchWin, SolidUI, W.QMainWindow):
         add("fit", "Fit to view").clicked.connect(lambda: s.vp.fit())
         g = add("grid", "Show / hide grid", True); g.setChecked(True)
         g.toggled.connect(lambda on: (setattr(s.vp, "show_grid", on), s.vp.update()))
+        d = add("display", "Display settings: visual style, camera, named views, origin"); dm = W.QMenu(d)
+        dm.aboutToShow.connect(lambda: s.display_menu(dm)); d.setMenu(dm); d.setPopupMode(W.QToolButton.InstantPopup)
+        add("lookat", "Look At the selected face").clicked.connect(lambda: s.vp.look_at_selection() or s.statusBar().showMessage("Select a face first.", 4000))
         nb.adjustSize(); s.vp.navbar = nb
 
     def set_nav(s, mode):
@@ -9991,8 +15455,14 @@ class Fission(SketchWin, SolidUI, W.QMainWindow):
             it.setToolTip(0, f"{len(x.geo.C)} curve(s), {len(x.geo.K) - nd} constraint(s), {nd} dimension(s)\nDouble-click to edit · right-click for more")
         bd = item(root, "Bodies", "folder", "grp:bd", any(x.visible for x in v.bodies) or not v.bodies)
         for i, x in enumerate(v.bodies):
-            it = item(bd, f"Body{i+1}", "body", f"bd:{i}", x.visible)
-            m = x.mass(); tip = f"Volume {fmt(abs(volume(x.shape))/1000, 3)} cm³" + (f"\n{x.material}: {fmt(m, 2)} g" if m is not None else "")
+            sf = getattr(x, "surface", False)
+            ms = getattr(x, "mesh", False)
+            it = item(bd, getattr(x, "name", None) or f"Body{i+1}", "meshbody" if ms else "surfbody" if sf else "sheetbody" if getattr(x, "sheet", None) else "body",
+                      f"bd:{i}", x.visible)
+            m = None if sf else x.mass()
+            tip = (f"Mesh body · {len(x.tv):,} triangles · volume {fmt(abs(mesh_volume(x.tv))/1000, 3)} cm³" if ms else
+                   f"Surface body · area {fmt(surface_area(x.shape)/100, 3)} cm²" if sf else f"Volume {fmt(abs(volume(x.shape))/1000, 3)} cm³") + \
+                  (f"\n{x.material}: {fmt(m, 2)} g" if m is not None else "")
             it.setToolTip(0, tip)
             if x.color:
                 pm = G.QPixmap(12, 12); pm.fill(G.QColor.fromRgbF(*x.color)); it.setIcon(0, G.QIcon(pm))
@@ -10004,11 +15474,13 @@ class Fission(SketchWin, SolidUI, W.QMainWindow):
         if v.cons:
             cn = item(root, "Construction", "folder", "grp:cn", any(c["visible"] for c in v.cons)); folders.append(cn)
             for i, c in enumerate(v.cons): item(cn, c["name"], {"plane": "cplane", "axis": "caxis", "point": "cpoint"}[c["kind"]], f"cn:{i}", c["visible"])
+        s.insp_browser(root, item, folders); s.asm_browser(root, item, folders); s.cam_browser(root, item, folders)
         for it in folders: it.setExpanded(True)
         t.blockSignals(False); s.rebuild_timeline(); s.update_title()
 
     def browser_click(s, item, _col=0):
         ref = item.data(0, C.Qt.UserRole) or ""; v = s.vp
+        if s.insp_click(ref) or s.asm_click(ref): return
         if ref.startswith("sk:"): v.active = v.sketches[int(ref[3:])]; v.sel_body = None
         elif ref.startswith("bd:"):
             v.sel_body = int(ref[3:]); v.sel.clear(); v.sel_face = None
@@ -10020,6 +15492,7 @@ class Fission(SketchWin, SolidUI, W.QMainWindow):
         ref, v = item.data(0, C.Qt.UserRole), s.vp
         if not ref or col: return
         on = item.checkState(0) == C.Qt.Checked
+        if s.insp_vis(ref, on) or s.asm_vis(ref, on) or s.cam_vis(ref, on): return
         if ref == "grp:cv" or ref.startswith("cv:"):
             sel = range(len(v.canv)) if ref == "grp:cv" else [int(ref[3:])]
             for i in sel: v.canv[i]["visible"] = on
@@ -10041,7 +15514,9 @@ class Fission(SketchWin, SolidUI, W.QMainWindow):
         if s.busy(): return
         try:
             if v.sel_body is not None and v.sel_body < len(v.bodies):
-                bi = v.sel_body; v.sel_body = v.sel_face = None; v.sel.clear(); v.do({"t": "delete", "bi": bi})
+                ids = sorted(v.msel | {v.sel_body}, reverse=True); v.sel_body = v.sel_face = None; v.sel.clear(); v.msel = set()
+                for bi in ids:
+                    if bi < len(v.bodies): v.do({"t": "delete", "bi": bi})
             elif v.active and v.active.sel:
                 regs = v.active.regions(); keep = []
                 for k, p in v.active.entities:                       # remove the shapes that make up the selected regions
@@ -10339,9 +15814,19 @@ class Fission(SketchWin, SolidUI, W.QMainWindow):
 
     # ---- drawing & export ----
     def drawing(s, *_):
-        shapes = [b.shape for b in s.vp.bodies if b.visible]
+        v = s.vp; shapes = [b.shape for b in v.bodies if b.visible and not getattr(b, "mesh", False)]
         if not shapes: return W.QMessageBox.information(s, "Drawing", "Nothing to draw yet - make a body first.")
-        try: DrawingDialog(s, shapes, "Untitled").exec()
+        doc = v.drawing_doc or new_drawing_doc(s.export_name() if getattr(s, "path", None) else "")
+        rows = v.bom_rows() if v.comps else [{"qty": 1, "pn": "", "name": getattr(b, "name", None) or f"Body{i + 1}", "material": b.material or ""}
+                                             for i, b in enumerate(v.bodies) if b.visible and not getattr(b, "mesh", False)]
+        try:
+            xs = None
+            if v.storyboard:
+                offs = v.explode_offsets(v.storyboard, 1e9)
+                xs = [transformed(b.shape, [[1, 0, 0, offs.get(i, (0, 0, 0))[0]], [0, 1, 0, offs.get(i, (0, 0, 0))[1]], [0, 0, 1, offs.get(i, (0, 0, 0))[2]]])
+                      for i, b in enumerate(v.bodies) if b.visible and not getattr(b, "mesh", False)]
+            dlg = DrawingDialog2(s, shapes, doc, rows, xs); s._drawing_dlg = dlg; dlg.exec()
+            v.drawing_doc = doc; s._saved = None if doc else s._saved
         except Exception as ex: traceback.print_exc(); W.QMessageBox.warning(s, "Drawing failed", str(ex))
 
     def save_path(s, title, name, filt):
@@ -10367,50 +15852,68 @@ def volume_area(f1, f2):
     except Exception:
         return 0.0
 
-def selftest(out):
-    """Packaged-build check (Fission --selftest FILE): exercise the kernel, mesher, an export and the main window,
-    write a report to FILE ending in SELFTEST OK / SELFTEST FAILED, and return the exit code."""
-    lines = [f"Fission selftest  python {sys.version.split()[0]}  {sys.platform}"]
-    ok = False
+def selftest(out_path=None):
+    """Exercise the kernel, meshing, sketch solver and surface tools without a window (used to check packaged builds)."""
+    lines, ok = [], True
+    def say(m): lines.append(m)
     try:
-        import PySide6, OCP
-        lines.append(f"PySide6 {PySide6.__version__}  numpy {np.__version__}  OCP {getattr(OCP, '__version__', '?')}")
-        cyl = BRepPrimAPI_MakeCylinder(10, 20).Shape()
-        fil = BRepFilletAPI_MakeFillet(cyl)
-        for e in subshapes(cyl, TopAbs_EDGE):
-            if not degenerated(e): fil.Add(2.0, to_edge(e))
-        solid = boolean(fil.Shape(), BRepPrimAPI_MakeCylinder(4, 30).Shape(), "cut")
-        b = Body(solid)
-        p = GProp_GProps(); volume_props(solid, p)
-        lines.append(f"kernel: filleted tube, volume {p.Mass():.1f}, {len(b.tv)} triangles, {len(b.edges)} edges")
-        if not len(b.tv) or p.Mass() <= 0: raise RuntimeError("the kernel produced an empty solid")
-        with tempfile.TemporaryDirectory() as d:
-            write_obj(os.path.join(d, "t.obj"), [b])
-            lines.append(f"export: OBJ {os.path.getsize(os.path.join(d, 't.obj'))} bytes")
-        w = Fission(); w.show()
-        t = time.time()
-        while time.time() - t < 1.5: W.QApplication.processEvents(); time.sleep(0.02)
-        ctx = w.vp.context()
-        if not w.vp.isValid() or ctx is None:
-            raise RuntimeError("the 3D view got no OpenGL context - the graphics driver is missing or too old")
-        f = ctx.format(); lines.append(f"Qt context: OpenGL {f.majorVersion()}.{f.minorVersion()}")
-        w.vp.makeCurrent()
-        gl = glGetString(GL_VERSION); vendor = glGetString(GL_RENDERER)
-        lines.append(f"window: {w.width()}x{w.height()}  OpenGL {gl.decode() if gl else '?'}  ({vendor.decode() if vendor else '?'})")
-        w.vp.doneCurrent(); w.hide()
-        ok = True
+        import OCP; say(f"OCP {getattr(OCP, '__version__', '?')}")
+        b = BRepPrimAPI_MakeBox(20, 10, 5).Shape(); say(f"box volume {volume(b):.3f}")
+        body = Body(b); say(f"mesh {len(body.tv)} triangles, {len(body.eds)} edges")
+        f = fillet(b, body.eds[:1], 1.0); say(f"fillet volume {volume(f):.3f}")
+        g = Geo(); build_rect2(g, (0, 0, None), (10, 5, None)); geo_solve(g); say(f"sketch {len(g.C)} curves solved")
+        w1 = BRepBuilderAPI_MakeWire(BRepBuilderAPI_MakeEdge(gp_Circ(gp_Ax2(gp_Pnt(0, 0, 0), gp_Dir(0, 0, 1)), 10)).Edge()).Wire()
+        w2 = BRepBuilderAPI_MakeWire(BRepBuilderAPI_MakeEdge(gp_Circ(gp_Ax2(gp_Pnt(0, 0, 20), gp_Dir(0, 0, 1)), 6)).Edge()).Wire()
+        s_ = surf_loft([w1, w2]); caps = [surf_patch(subshapes(w, TopAbs_EDGE)) for w in (w1, w2)]
+        sol = sew([s_] + caps); say(f"surface loft + patches stitched: solid volume {abs(volume(sol)):.3f}")
+        import tempfile as _tf; td = _tf.mkdtemp(); stp = os.path.join(td, "t.step"); stl = os.path.join(td, "t.stl")
+        write_cad_file(stp, [b]); rv = abs(volume(read_cad_file(stp))); say(f"STEP round trip volume {rv:.3f}")
+        write_stl(stl, tessellate(b)); mv = abs(mesh_volume(read_stl(stl))); say(f"STL round trip volume {mv:.3f}")
+        ok = abs(volume(b) - 1000) < 1e-6 and abs(volume(sol)) > 3000 and abs(rv - 1000) < 1e-3 and abs(mv - 1000) < 1e-3
+        import OpenGL.GL; say("PyOpenGL ok")
+        app_ = W.QApplication.instance() or W.QApplication(sys.argv[:1])
+        win = Fission(); say(f"window built: {win.windowTitle()} with {len(COMMANDS)} commands"); win.close()
     except Exception:
-        lines.append(traceback.format_exc())
-    lines.append("SELFTEST OK" if ok else "SELFTEST FAILED")
-    with open(out, "w", encoding="utf-8") as f: f.write("\n".join(lines) + "\n")
+        ok = False; say(traceback.format_exc())
+    say("SELFTEST " + ("OK" if ok else "FAILED")); text = "\n".join(lines)
+    if out_path:
+        with open(out_path, "w", encoding="utf-8") as fh: fh.write(text + "\n")
+    else:
+        try: print(text)
+        except Exception: pass
     return 0 if ok else 1
 
+class FissionApp(W.QApplication):
+    """Catches macOS 'open this .fission file' events from Finder / the Dock."""
+    def __init__(s, argv):
+        super().__init__(argv); s.win, s.pending = None, []
+    def event(s, e):
+        if e.type() == C.QEvent.FileOpen and e.file().lower().endswith(".fission"):
+            if s.win is not None: s.win.open_design(e.file())
+            else: s.pending.append(e.file())
+            return True
+        return super().event(e)
+
+if __name__ == "__main__" and "--selftest" in sys.argv:
+    if sys.platform.startswith("linux") and not (os.environ.get("DISPLAY") or os.environ.get("WAYLAND_DISPLAY")):
+        os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")     # Windows / macOS always have a desktop session
+    i = sys.argv.index("--selftest"); out = sys.argv[i + 1] if len(sys.argv) > i + 1 else None
+    _app = W.QApplication(sys.argv[:1]); sys.exit(selftest(out))
+
 if __name__ == "__main__":
+    if sys.platform == "win32" and os.path.basename(sys.executable).lower() in ("python.exe", "pythonw.exe"):   # run from source: own taskbar button
+        try: import ctypes; ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID("Fission.CAD")
+        except Exception: pass
     fmt_ = G.QSurfaceFormat(); fmt_.setSamples(4); fmt_.setDepthBufferSize(24); fmt_.setStencilBufferSize(8)
     fmt_.setProfile(G.QSurfaceFormat.CompatibilityProfile); G.QSurfaceFormat.setDefaultFormat(fmt_)
-    app = W.QApplication(sys.argv); app.setStyle("fission")
+    app = FissionApp(sys.argv); app.setStyle("Fusion")
     app.setApplicationName("Fission"); app.setDesktopFileName("fission"); app.setWindowIcon(icon("extrude", 64))
-    if len(sys.argv) > 2 and sys.argv[1] == "--selftest": os._exit(selftest(sys.argv[2]))
-    w = Fission(); w.show()
-    if len(sys.argv) > 1 and sys.argv[1].lower().endswith(".fission"): C.QTimer.singleShot(0, lambda: w.open_design(sys.argv[1]))
+    w = Fission()
+    try:
+        g = app.primaryScreen().availableGeometry()
+        if w.width() > g.width()*0.95 or w.height() > g.height()*0.95: w.setGeometry(g.left() + 10, g.top() + 30, int(g.width()*0.95), int(g.height()*0.90))
+    except Exception: pass
+    w.show(); app.win = w; C.QTimer.singleShot(600, w.check_recovery)
+    files = [a for a in sys.argv[1:] if a.lower().endswith(".fission")] + app.pending
+    if files: C.QTimer.singleShot(0, lambda: w.open_design(files[-1]))
     sys.exit(app.exec())
