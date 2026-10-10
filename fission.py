@@ -202,7 +202,28 @@ def _eye(p, col="#6b7280", off=False):
     p.setBrush(G.QColor(col)); p.drawEllipse(C.QRectF(15, 15, 10, 10))
     if off: _ln(p, 7, 34, 33, 6, col, 3)
 def _folder(p):
-    _pg(p, [(4, 9), (16, 9), (19, 13), (36, 13), (36, 33), (4, 33)], "#a9aeb4", "#7d838a", 1.4)
+    _pg(p, [(4, 8), (15, 8), (18, 12), (36, 12), (36, 33), (4, 33)], "#ffffff", "#5c5c5c", 2.2); _ln(p, 4, 15, 36, 15, "#5c5c5c", 1.6)
+def _docset(p):
+    _pg(p, gear_poly(20, 20, 8, 17, 12.5, 0.45), "#6a6a6a", "#6a6a6a", 1)
+    p.setPen(C.Qt.NoPen); p.setBrush(G.QColor("#ffffff")); p.drawEllipse(C.QRectF(14, 14, 12, 12))
+def _units(p):
+    _pg(p, [(8, 3), (26, 3), (33, 10), (33, 36), (8, 36)], "#f4f4f4", "#7a7a7a", 1.6)
+    p.setPen(C.Qt.NoPen); p.setBrush(G.QColor("#e8a33a")); p.drawRect(C.QRectF(6, 29, 29, 8))
+    for x in range(9, 34, 4): _ln(p, x, 29, x, 32 if x % 8 else 34, "#8a5a10", 1)
+def _rootcomp(p):
+    _pg(p, [(7, 13), (20, 6), (33, 13), (33, 29), (20, 36), (7, 29)], "#f7f7f7", "#5c5c5c", 2)
+    _ln(p, 7, 13, 20, 20, "#5c5c5c", 1.6); _ln(p, 33, 13, 20, 20, "#5c5c5c", 1.6); _ln(p, 20, 20, 20, 36, "#5c5c5c", 1.6)
+def _sknode(p):
+    p.setPen(_pen("#5c5c5c", 1.8)); p.setBrush(G.QColor("#ffffff")); p.drawRect(C.QRectF(4, 6, 26, 26))
+    q = G.QPainterPath(); q.moveTo(8, 26); q.lineTo(14, 14); q.lineTo(22, 22); q.lineTo(27, 11)
+    p.setPen(_pen("#d9412b", 2.4)); p.setBrush(C.Qt.NoBrush); p.drawPath(q)
+    p.save(); p.translate(29, 29); p.rotate(-45)
+    p.setPen(_pen("#8a5a10", 1)); p.setBrush(G.QColor("#f2a33a")); p.drawRect(C.QRectF(-3, -12, 6, 14))
+    _pg(p, [(-3, 2), (3, 2), (0, 7)], "#f6d7a8", "#8a5a10", 1); p.restore()
+def _chev_r(p):
+    p.setPen(_pen("#5a5a5a", 3.4)); p.setBrush(C.Qt.NoBrush); p.drawPolyline(G.QPolygonF([C.QPointF(15, 10), C.QPointF(25, 20), C.QPointF(15, 30)]))
+def _chev_d(p):
+    p.setPen(_pen("#5a5a5a", 3.4)); p.setBrush(C.Qt.NoBrush); p.drawPolyline(G.QPolygonF([C.QPointF(10, 15), C.QPointF(20, 25), C.QPointF(30, 15)]))
 def _body(p): _box(p, 20, 7, 14, 14, ("#e1e4e8", "#b1b7bf", "#8f969f"), "#6f757d")
 def _doc(p):
     _pg(p, [(8, 4), (25, 4), (32, 11), (32, 36), (8, 36)], "#f7f7f7", "#7a828b", 1.6); _box(p, 20, 15, 7, 8)
@@ -255,6 +276,7 @@ ICONS = dict(sketch=_sketch, poly=_line, line=_line, rect=_rect, circle=_circle,
              save=_save, undo=_undo, redo=_redo, rot_l=_rot_l, rot_r=_rot_r, orbit=_orbit, pan=_pan, zoom=_zoom, fit=_fit,
              grid=_grid, home=_home, arrow_r=_arrow_r, arrow_d=_arrow_d, arrow_u=_arrow_u, first=_first, prev=_prev,
              play=_play, stop=_stop, next=_next, last=_last)
+ICONS.update(docset=_docset, units=_units, rootcomp=_rootcomp, sknode=_sknode, chev_r=_chev_r, chev_d=_chev_d)
 
 # ---- icons for the Fission 0.5 solid tools ----
 def _circ(p, cx, cy, r, fill=None, line=BLUE_D, w=1.3):
@@ -796,7 +818,8 @@ def icon(kind, size=40): return G.QIcon(pix(kind, size))
 def ui_assets():
     """Qt stylesheets can only reference image files, so write the few glyphs they need to a temp dir."""
     d = os.path.join(tempfile.gettempdir(), "fission_ui"); os.makedirs(d, exist_ok=True)
-    for name, kind in (("eye_on", "eye"), ("eye_off", "eyeoff"), ("br_closed", "arrow_r"), ("br_open", "arrow_d"), ("up", "arrow_u"), ("check", "check")):
+    for name, kind in (("eye_on", "eye"), ("eye_off", "eyeoff"), ("br_closed", "chev_r"), ("br_open", "chev_d"), ("up", "arrow_u"), ("check", "check"),
+                       ("down", "arrow_d")):
         pix(kind, 18, 1).save(os.path.join(d, name + ".png")); pix(kind, 18, 2).save(os.path.join(d, name + "@2x.png"))
     return d.replace("\\", "/")
 
@@ -819,8 +842,8 @@ QDoubleSpinBox,QSpinBox,QComboBox,QLineEdit{{background:white;color:#333;border:
 QDoubleSpinBox:focus,QSpinBox:focus,QComboBox:focus,QLineEdit:focus{{border-color:{ACCENT}}}
 QDoubleSpinBox::up-button,QDoubleSpinBox::down-button,QSpinBox::up-button,QSpinBox::down-button{{width:16px;border:none;background:transparent}}
 QDoubleSpinBox::up-arrow,QSpinBox::up-arrow{{image:url({d}/up.png);width:9px;height:9px}}
-QDoubleSpinBox::down-arrow,QSpinBox::down-arrow{{image:url({d}/br_open.png);width:9px;height:9px}}
-QComboBox::drop-down{{border:none;width:20px}} QComboBox::down-arrow{{image:url({d}/br_open.png);width:9px;height:9px}}
+QDoubleSpinBox::down-arrow,QSpinBox::down-arrow{{image:url({d}/down.png);width:9px;height:9px}}
+QComboBox::drop-down{{border:none;width:20px}} QComboBox::down-arrow{{image:url({d}/down.png);width:9px;height:9px}}
 QComboBox QAbstractItemView{{background:white;color:#333;border:1px solid #bdbdbd;selection-background-color:#d6e9f8;selection-color:#222}}
 QDialog,QMessageBox,QInputDialog,QFileDialog{{background:#f3f3f3;color:#333}}
 QCheckBox,QRadioButton{{color:#333;background:transparent}}
@@ -848,9 +871,12 @@ QCheckBox{{color:#333}}
 #grp:hover{{color:{ACCENT}}} #grp::menu-indicator{{image:none;width:0}}
 #sep{{background:#d6d6d6;border:none}}
 
-#browser{{background:#f6f6f6;border-right:1px solid #cfcfcf}}
-#panelhdr{{background:#ececec;border-bottom:1px solid #d2d2d2}} #panelhdr QLabel{{font-weight:600;font-size:12px;color:#444}}
-#bcol{{background:transparent;border:none;font-size:14px;font-weight:700;color:#666;padding:0 4px}} #bcol:hover{{color:{ACCENT}}}
+#browser{{background:transparent;border:none}}
+#panelhdr{{background:#f2f2f2;border:1px solid #d4d4d4}} #panelhdr QLabel{{font-weight:400;font-size:13px;color:#2d2d2d}}
+#bcol{{background:transparent;border:none;font-size:13px;font-weight:700;color:#7a7a7a;padding:0 4px}} #bcol:hover{{color:#2d2d2d}}
+QTreeWidget#btree{{background:transparent;color:#2d2d2d;border:none;outline:0;font-size:13px}}
+QTreeWidget#btree::item{{padding:2px 0;background:transparent;border:none}}
+QTreeWidget#btree::item:hover, QTreeWidget#btree::item:selected{{background:transparent;color:#1e1e1e}}
 QTreeWidget{{background:#f6f6f6;color:#333;border:none;outline:0;font-size:13px}}
 QTreeWidget::item{{padding:3px 0}} QTreeWidget::item:hover{{background:#e7f0f7}}
 QTreeWidget::item:selected{{background:#d3e7f6;color:#222}}
@@ -10787,9 +10813,13 @@ class Viewport(CamMixin, RenderMixin, PlasticMixin, SheetMixin, AssemblyMixin, I
     def resizeEvent(s, e):
         super().resizeEvent(e)
         s.overlay.resize(s.size())
-        if s.palette: s.palette.adjustSize(); s.palette.move(s.width() - s.palette.width() - 10, 150)
+        if s.palette:
+            s.palette.adjustSize(); make_draggable(s.palette)
+            if getattr(s.palette, "_dragged", False): s.palette.move(clamp_in_parent(s.palette, s.palette.pos()))
+            else: s.palette.move(s.width() - s.palette.width() - 10, 150)
         if s.cube: s.cube.move(s.width() - s.cube.width() - 8, 6)
         if s.navbar: s.navbar.move((s.width() - s.navbar.width())//2, s.height() - s.navbar.height() - 12)
+        if hasattr(s.window(), "layout_browser"): s.window().layout_browser()
 
     def mousePressEvent(s, e):
         s.last, s.moved = e.position(), False
@@ -12025,32 +12055,92 @@ class DrawingDialog(W.QDialog):
 # ---------------------------------------------------------------------------------------------------------------
 
 class RibbonFit(W.QScrollArea):
-    """Holds one ribbon page so the window can be narrower than the ribbon: first the buttons shrink, then the ribbon
-    scrolls sideways (mouse wheel works on it)."""
+    """Holds one ribbon page. Like Fusion, a narrow window never scrolls the toolbar: the buttons shrink first, then each
+    group drops icons from its right end (busiest groups first) down to one icon - the group's NAME ▾ menu still lists
+    every command."""
     def __init__(s, rib):
         super().__init__(); s.rib = rib; s.setWidget(rib); s.setWidgetResizable(True); s.setFrameShape(W.QFrame.NoFrame)
-        s.setVerticalScrollBarPolicy(C.Qt.ScrollBarAlwaysOff); s.setHorizontalScrollBarPolicy(C.Qt.ScrollBarAsNeeded)
-        s.horizontalScrollBar().setStyleSheet("QScrollBar:horizontal{height:7px;background:transparent}"
-                                              "QScrollBar::handle:horizontal{background:#b9c0c8;border-radius:3px;min-width:40px}"
-                                              "QScrollBar::add-line,QScrollBar::sub-line{width:0}")
+        s.setVerticalScrollBarPolicy(C.Qt.ScrollBarAlwaysOff); s.setHorizontalScrollBarPolicy(C.Qt.ScrollBarAlwaysOff)
         s.setSizePolicy(W.QSizePolicy.Ignored, W.QSizePolicy.Fixed)
         s.btns = [b for b in rib.findChildren(W.QToolButton) if b.objectName() == "rb"]
+        s.groups = {}
+        for b in s.btns: s.groups.setdefault(id(b.parentWidget()), []).append(b)
         s.compact = False; s.full_w = rib.sizeHint().width(); s.full_h = rib.sizeHint().height()
-        s.setFixedHeight(s.full_h + 8)
+        s.setFixedHeight(s.full_h + 4); s._fitting = False
     def set_compact(s, on):
         if on == s.compact: return
         s.compact = on; n, ic = (36, 26) if on else (46, 34)
         for b in s.btns: b.setFixedSize(n, n); b.setIconSize(C.QSize(ic, ic))
-        s.rib.adjustSize()
+    def width_needed(s):
+        for lay in s.rib.findChildren(W.QLayout): lay.invalidate()
+        s.rib.layout().invalidate()
+        for box in {b.parentWidget() for b in s.btns}: box.updateGeometry()
+        s.rib.layout().activate(); return s.rib.layout().sizeHint().width()
+    def fit(s):
+        if s._fitting: return
+        s._fitting = True
+        try:
+            avail = s.viewport().width()
+            for b in s.btns: b.setVisible(True)
+            s.set_compact(False)
+            if s.width_needed() <= avail: return
+            s.set_compact(True)
+            order = list(s.groups.values())
+            while s.width_needed() > avail:
+                shown = [[b for b in g if not b.isHidden()] for g in order]
+                cand = [(len(sh), i) for i, sh in enumerate(shown) if len(sh) > 1]
+                if not cand: break
+                _, i = max(cand); shown[i][-1].setVisible(False)
+        finally: s._fitting = False
     def resizeEvent(s, e):
-        s.set_compact(s.viewport().width() < s.full_w)
-        super().resizeEvent(e)
-    def minimumSizeHint(s): return C.QSize(200, s.full_h + 8)
-    def sizeHint(s): return C.QSize(s.full_w, s.full_h + 8)
-    def wheelEvent(s, e):
-        sb = s.horizontalScrollBar()
-        if sb.maximum() > 0: sb.setValue(sb.value() - e.angleDelta().y()); e.accept()
-        else: super().wheelEvent(e)
+        super().resizeEvent(e); s.fit()
+    def showEvent(s, e):
+        super().showEvent(e); C.QTimer.singleShot(0, s.fit)
+    def minimumSizeHint(s): return C.QSize(200, s.full_h + 4)
+    def sizeHint(s): return C.QSize(s.full_w, s.full_h + 4)
+    def wheelEvent(s, e): e.ignore()
+
+class PanelDrag(C.QObject):
+    """Drag a floating panel around the viewport by its title bar. The spot is remembered (on the viewport) so the next
+    command dialog opens where you left the last one."""
+    def __init__(s, panel, handle):
+        super().__init__(panel); s.panel, s.off = panel, None
+        handle.installEventFilter(s); handle.setCursor(C.Qt.SizeAllCursor)
+    def eventFilter(s, obj, e):
+        t = e.type()
+        if t == C.QEvent.MouseButtonPress and e.button() == C.Qt.LeftButton:
+            s.off = e.globalPosition().toPoint() - s.panel.pos(); s.panel.raise_(); return True
+        if t == C.QEvent.MouseMove and s.off is not None:
+            s.panel.move(clamp_in_parent(s.panel, e.globalPosition().toPoint() - s.off)); return True
+        if t == C.QEvent.MouseButtonRelease and s.off is not None:
+            s.off = None; s.panel._dragged = True
+            par = s.panel.parentWidget()
+            if par is not None and s.panel is not getattr(par, "palette", None): par._cmd_pos = s.panel.pos()
+            return True
+        return False
+
+def clamp_in_parent(w, pt):
+    """Keep at least the title bar of a panel inside its parent."""
+    par = w.parentWidget()
+    if par is None: return pt
+    return C.QPoint(max(-w.width() + 60, min(pt.x(), par.width() - 60)), max(0, min(pt.y(), par.height() - 30)))
+
+def make_draggable(w):
+    if getattr(w, "_drag", None) is None:
+        hd = w.findChild(W.QLabel, "cmdhdr")
+        if hd is not None: w._drag = PanelDrag(w, hd)
+
+def place_cmd(w):
+    """Command dialogs open just right of the floating browser so neither hides the other, and stay on top of it -
+    or wherever you last dragged one to."""
+    make_draggable(w)
+    par = w.parentWidget(); win = par.window() if par is not None else None
+    if par is not None and getattr(par, "_cmd_pos", None) is not None:
+        w.move(clamp_in_parent(w, par._cmd_pos)); w.raise_(); return
+    x = 16
+    br = getattr(win, "left", None)
+    if br is not None and br.isVisible() and br.parentWidget() is par: x = br.geometry().right() + 12
+    w.move(x, 16); w.raise_()
 
 class CmdPanel(W.QFrame):
     """Floating Fusion-style command dialog in the top-left corner of the viewport."""
@@ -12064,6 +12154,7 @@ class CmdPanel(W.QFrame):
         row = W.QHBoxLayout(); row.addStretch(1); no, ok = W.QPushButton("Cancel"), W.QPushButton("OK"); ok.setObjectName("primary")
         row.addWidget(no); row.addWidget(ok); bl.addLayout(row); s.move(16, 16); s.hide()
         ok.clicked.connect(lambda: on_done(True)); no.clicked.connect(lambda: on_done(False))
+    def showEvent(s, e): place_cmd(s); super().showEvent(e)
     def length(s, label, lo, hi):
         b = LengthSpin(lo, hi); s.form.addRow(label, b); return b
     def spin(s, label, lo, hi, suffix, dec=2):
@@ -12932,7 +13023,7 @@ class MeasurePanel(W.QFrame):
         rs.clicked.connect(s.restart); cl.clicked.connect(win.measure_stop)
         for w_ in (s.kind, s.dist): w_.currentIndexChanged.connect(s.changed)
         s.prec.valueChanged.connect(s.changed)
-        s.move(16, 16); s.show(); s.raise_(); s.render_out()
+        s.show(); place_cmd(s); s.render_out()
     def changed(s, *_):
         m = s.vp.meas
         if m is None: return
@@ -13900,7 +13991,7 @@ class StoryPanel(W.QFrame):
         s.fps = W.QSpinBox(); s.fps.setRange(5, 60); s.fps.setValue(24); f.addRow("Frames / s", s.fps)
         s.use_render = W.QCheckBox("Use the renderer (slower, nicer)"); f.addRow(s.use_render)
         cl = W.QPushButton("Close"); cl.clicked.connect(s.close_panel); f.addRow(cl)
-        s.timer = C.QTimer(s); s.timer.timeout.connect(s.tick); s.adjustSize(); s.move(16, 16); s.refresh_list()
+        s.timer = C.QTimer(s); s.timer.timeout.connect(s.tick); s.adjustSize(); place_cmd(s); s.refresh_list()
     def steps(s): return s.win.vp.storyboard
     def total(s): return sum(x["dur"] for x in s.steps()) or 1.0
     def refresh_list(s):
@@ -14179,7 +14270,7 @@ class CmdForm(W.QFrame):
         first = next((f for f in cmd.fields if f["type"] == "sel" and not s.vals[f["key"]] and s.visible(f)), None) or \
                 next((f for f in cmd.fields if f["type"] == "sel" and s.visible(f)), None)
         if first: s.activate(first["key"])
-        s.refresh_rows(); s.move(16, 16); s.fit_height(); s.show(); s.raise_()
+        s.refresh_rows(); s.fit_height(); s.show(); place_cmd(s)
 
     # ---- fields ----
     def add_field(s, f, val):
@@ -14579,7 +14670,7 @@ class SketchWin:
                         ("O", lambda: s.open_cmd("sk_offset") if v.skedit else None), ("X", lambda: v.skedit and (v.sk_toggle_flag("cons"), s.palette.sync())),
                         ("P", lambda: s.open_cmd("sk_project") if v.skedit else s.open_cmd("cpattern"))):
             a = G.QAction(s); a.setShortcut(G.QKeySequence(key)); a.triggered.connect(fn); s.addAction(a)
-        s.palette = SketchPalette(s); v.palette = s.palette
+        s.palette = SketchPalette(s); v.palette = s.palette; make_draggable(s.palette)
         v.sk_mode.connect(s.on_sk_mode); v.dim_place.connect(s.on_dim_place); v.dim_edit.connect(s.on_dim_edit)
         v.text_dialog.connect(s.on_text_dialog); v.corner_dialog.connect(s.on_corner_dialog); v.type_dialog.connect(s.on_type_dialog)
         v.calib_done.connect(s.on_calib_done)
@@ -15032,6 +15123,24 @@ def light_palette():
             p.setColor(grp, role, G.QColor(col))
     return p
 
+class BrowserDelegate(W.QStyledItemDelegate):
+    """Fusion's browser rows float on the viewport: each row's eye, icon and name sit on a small grey 'chip' that hugs the
+    text (blue-tinted when selected, a shade darker under the mouse)."""
+    def paint(s, p, opt, idx):
+        o = W.QStyleOptionViewItem(opt); s.initStyleOption(o, idx)
+        tw = o.fontMetrics.horizontalAdvance(o.text)
+        chk = 20 if idx.data(C.Qt.CheckStateRole) is not None else 0
+        r = C.QRectF(opt.rect.left(), opt.rect.top() + 1, min(opt.rect.width(), chk + 22 + tw + 16), opt.rect.height() - 2)
+        sel, hov = bool(opt.state & W.QStyle.State_Selected), bool(opt.state & W.QStyle.State_MouseOver)
+        top = not idx.parent().isValid()
+        col = G.QColor(196, 222, 245, 235) if sel else G.QColor(218, 218, 218, 235) if hov else G.QColor(200, 200, 200, 225) if top else G.QColor(234, 234, 234, 225)
+        p.save(); p.setRenderHint(G.QPainter.Antialiasing); p.setPen(C.Qt.NoPen); p.setBrush(col); p.drawRoundedRect(r, 2, 2); p.restore()
+        o.state &= ~(W.QStyle.State_Selected | W.QStyle.State_MouseOver | W.QStyle.State_HasFocus)
+        super().paint(p, o, idx)
+    def sizeHint(s, opt, idx):
+        sz = super().sizeHint(opt, idx); return C.QSize(sz.width(), max(sz.height(), 26))
+
+
 class Fission(CamWin, RenderWin, SheetWin, AsmWin, TimelineWin, MeshWin, InspectWin, SketchWin, SolidUI, W.QMainWindow):
     TABS = ("SOLID", "SURFACE", "MESH", "SHEET METAL", "PLASTIC")
     # Other workspaces are hidden while the solid / surface tools are the focus; put them back in TABS to show them again:
@@ -15149,10 +15258,8 @@ class Fission(CamWin, RenderWin, SheetWin, AsmWin, TimelineWin, MeshWin, Inspect
         s.rib_stack.setSizePolicy(W.QSizePolicy.Ignored, W.QSizePolicy.Fixed)
         s.cur_tab = "SOLID"; col.addWidget(s.rib_stack)
         s.vp.cmd_key.connect(lambda ok: s.cmd_ok() if ok else s.cmd_cancel())
-        s.split = W.QSplitter(); s.split.setChildrenCollapsible(False)
-        s.split.addWidget(s.build_browser()); s.split.addWidget(s.vp)
-        s.palette.raise_(); s.split.setStretchFactor(1, 1); s.split.setSizes([260, 1100]); s.split.setHandleWidth(1)
-        col.addWidget(s.split, 1); col.addWidget(s.build_timeline())
+        s.build_browser(); s.palette.raise_()
+        col.addWidget(s.vp, 1); col.addWidget(s.build_timeline())
         s.build_navbar(); s.refresh(); s.add_command_search(); s.insp_setup()
         s.statusBar().showMessage("Tip: press S and click the ground, the front / right plane or a flat face to start a sketch.")
 
@@ -15309,22 +15416,45 @@ class Fission(CamWin, RenderWin, SheetWin, AsmWin, TimelineWin, MeshWin, Inspect
                                                         "extend and stitch them; Stitch a closed set into a solid or Thicken it.", 8000)
 
     def build_browser(s):
-        s.left = W.QFrame(); s.left.setObjectName("browser"); s.left.setMinimumWidth(180)
-        lv = W.QVBoxLayout(s.left); lv.setContentsMargins(0, 0, 0, 0); lv.setSpacing(0)
-        hdr = W.QFrame(); hdr.setObjectName("panelhdr"); hh = W.QHBoxLayout(hdr); hh.setContentsMargins(6, 5, 8, 5)
+        """Fusion's BROWSER: a header bar and a transparent tree floating over the top-left of the viewport."""
+        s.left = W.QFrame(s.vp); s.left.setObjectName("browser")
+        lv = W.QVBoxLayout(s.left); lv.setContentsMargins(0, 0, 0, 0); lv.setSpacing(2)
+        hdr = W.QFrame(); hdr.setObjectName("panelhdr"); hdr.setFixedHeight(30); hh = W.QHBoxLayout(hdr); hh.setContentsMargins(4, 0, 8, 0)
         s.bcol = s.tbtn("bcol", text="«", tip="Collapse browser"); s.bcol.clicked.connect(s.toggle_browser)
-        s.btitle = W.QLabel("BROWSER"); hh.addWidget(s.bcol); hh.addWidget(s.btitle); hh.addStretch(1)
-        s.tree = W.QTreeWidget(); s.tree.setHeaderHidden(True); s.tree.setIndentation(16); s.tree.setIconSize(C.QSize(16, 16))
+        s.btitle = W.QLabel("BROWSER"); hh.addWidget(s.bcol); hh.addSpacing(6); hh.addWidget(s.btitle); hh.addStretch(1)
+        s.bmin = s.tbtn("bcol", text="−", tip="Collapse browser"); s.bmin.clicked.connect(s.toggle_browser); hh.addWidget(s.bmin)
+        s.tree = W.QTreeWidget(); s.tree.setObjectName("btree"); s.tree.setHeaderHidden(True); s.tree.setIndentation(22); s.tree.setIconSize(C.QSize(17, 17))
+        s.tree.setItemDelegate(BrowserDelegate(s.tree)); s.tree.setMouseTracking(True); s.tree.viewport().setAutoFillBackground(False)
+        s.tree.setHorizontalScrollBarPolicy(C.Qt.ScrollBarAlwaysOff); s.tree.setFrameShape(W.QFrame.NoFrame)
         s.tree.itemClicked.connect(s.browser_click); s.tree.itemChanged.connect(s.vis_changed)
         s.tree.itemDoubleClicked.connect(lambda it, c: s.browser_double(it, c)); s.tree.setContextMenuPolicy(C.Qt.CustomContextMenu)
         s.tree.customContextMenuRequested.connect(lambda pos: s.browser_menu(pos))
+        s.tree.itemExpanded.connect(lambda *_: s.layout_browser()); s.tree.itemCollapsed.connect(lambda *_: s.layout_browser())
         lv.addWidget(hdr); lv.addWidget(s.tree, 1)
         return s.left
 
+    BROWSER_W = 300
+    def layout_browser(s):
+        """Size the floating browser to its rows so the empty area below it still belongs to the viewport."""
+        if not hasattr(s, "left"): return
+        vp = s.vp
+        if s.tree.isVisible():
+            h, it = 4, s.tree.topLevelItem(0)
+            while it is not None: h += max(s.tree.visualItemRect(it).height(), 26); it = s.tree.itemBelow(it)
+            s.left.setGeometry(0, 6, s.BROWSER_W, min(32 + h, max(80, vp.height() - 20)))
+        else: s.left.setGeometry(0, 6, 34, 30)
+        for w in vp.findChildren(W.QFrame, "cmd"):
+            if w.isVisible() and w is not getattr(s, "palette", None): place_cmd(w)
+
+    def units_menu(s, gpos):
+        m = W.QMenu(s)
+        for label, u in (("Millimetres (mm)", "mm"), ("Inches (in)", "in")):
+            a = m.addAction(label); a.setCheckable(True); a.setChecked(DISPLAY["unit"] == u); a.triggered.connect(lambda _=False, u=u: (s.set_units(u), s.refresh()))
+        m.exec(gpos)
+
     def toggle_browser(s):
-        on = not s.tree.isVisible(); s.tree.setVisible(on); s.btitle.setVisible(on); s.bcol.setText("«" if on else "»")
-        s.left.setMinimumWidth(180 if on else 0); s.left.setMaximumWidth(16777215 if on else 38)
-        if on: s.split.setSizes([260, max(1, s.width() - 260)])
+        on = not s.tree.isVisible(); s.tree.setVisible(on); s.btitle.setVisible(on); s.bmin.setVisible(on); s.bcol.setText("«" if on else "»")
+        s.layout_browser()
 
     def build_timeline_v6(s):
         bar = W.QFrame(); bar.setObjectName("timeline"); bar.setFixedHeight(48)
@@ -15446,11 +15576,14 @@ class Fission(CamWin, RenderWin, SheetWin, AsmWin, TimelineWin, MeshWin, Inspect
             it.setFlags(it.flags() | C.Qt.ItemIsUserCheckable); it.setCheckState(0, C.Qt.Checked if on else C.Qt.Unchecked)
             if bold: f = it.font(0); f.setBold(True); it.setFont(0, f)
             return it
-        root = item(t, s.doc_name() if hasattr(s, "path") else "Untitled", "doc", "root", any(x.visible for x in v.sketches + v.bodies) or not (v.sketches or v.bodies), True)
+        root = item(t, s.doc_name() if hasattr(s, "path") else "Untitled", "rootcomp", "root", any(x.visible for x in v.sketches + v.bodies) or not (v.sketches or v.bodies), True)
+        ds = W.QTreeWidgetItem(root, ["Document Settings"]); ds.setIcon(0, icon("docset", 16)); ds.setData(0, C.Qt.UserRole, "docset")
+        un = W.QTreeWidgetItem(ds, [f"Units: {DISPLAY['unit']}"]); un.setIcon(0, icon("units", 16)); un.setData(0, C.Qt.UserRole, "units")
+        un.setToolTip(0, "Click to change the units shown everywhere")
         sk = item(root, "Sketches", "folder", "grp:sk", any(x.visible for x in v.sketches) or not v.sketches)
         for i, x in enumerate(v.sketches):
             ed = x is v.esk
-            it = item(sk, (x.name or f"Sketch{i+1}") + ("  (editing)" if ed else ""), "sketch", f"sk:{i}", x.visible, ed or (x is v.active and not v.skedit))
+            it = item(sk, (x.name or f"Sketch{i+1}") + ("  (editing)" if ed else ""), "sknode", f"sk:{i}", x.visible, ed or (x is v.active and not v.skedit))
             nd = sum(1 for k in x.geo.K if k["t"] in DIM_TYPES)
             it.setToolTip(0, f"{len(x.geo.C)} curve(s), {len(x.geo.K) - nd} constraint(s), {nd} dimension(s)\nDouble-click to edit · right-click for more")
         bd = item(root, "Bodies", "folder", "grp:bd", any(x.visible for x in v.bodies) or not v.bodies)
@@ -15475,11 +15608,28 @@ class Fission(CamWin, RenderWin, SheetWin, AsmWin, TimelineWin, MeshWin, Inspect
             cn = item(root, "Construction", "folder", "grp:cn", any(c["visible"] for c in v.cons)); folders.append(cn)
             for i, c in enumerate(v.cons): item(cn, c["name"], {"plane": "cplane", "axis": "caxis", "point": "cpoint"}[c["kind"]], f"cn:{i}", c["visible"])
         s.insp_browser(root, item, folders); s.asm_browser(root, item, folders); s.cam_browser(root, item, folders)
+        if not v.views:
+            nv = W.QTreeWidgetItem(root, ["Named Views"]); nv.setIcon(0, icon("folder", 16)); nv.setData(0, C.Qt.UserRole, "grp:nv")
+        order = ["docset", "grp:nv", "grp:or", "grp:an", "grp:cm", "grp:jt", "grp:bd", "grp:cv", "grp:sk", "grp:cn", "grp:cam"]
+        kids = [root.takeChild(0) for _ in range(root.childCount())]
+        kids.sort(key=lambda it: order.index(it.data(0, C.Qt.UserRole)) if it.data(0, C.Qt.UserRole) in order else len(order))
+        root.addChildren(kids)
+        if v.sel_body is not None:                                       # re-parenting drops the selection, so put it back
+            itr = W.QTreeWidgetItemIterator(t)
+            while itr.value():
+                if itr.value().data(0, C.Qt.UserRole) == f"bd:{v.sel_body}": itr.value().setSelected(True)
+                itr += 1
         for it in folders: it.setExpanded(True)
-        t.blockSignals(False); s.rebuild_timeline(); s.update_title()
+        root.setExpanded(True)
+        for it in kids:
+            if it.data(0, C.Qt.UserRole) == "docset": it.setExpanded(getattr(s, "_ds_open", False))
+            if it.data(0, C.Qt.UserRole) == "grp:or": it.setExpanded(False)
+        t.blockSignals(False); s.rebuild_timeline(); s.update_title(); C.QTimer.singleShot(0, s.layout_browser)
 
     def browser_click(s, item, _col=0):
         ref = item.data(0, C.Qt.UserRole) or ""; v = s.vp
+        if ref == "units": return s.units_menu(G.QCursor.pos())
+        if ref == "docset": s._ds_open = not item.isExpanded(); item.setExpanded(s._ds_open); return
         if s.insp_click(ref) or s.asm_click(ref): return
         if ref.startswith("sk:"): v.active = v.sketches[int(ref[3:])]; v.sel_body = None
         elif ref.startswith("bd:"):
