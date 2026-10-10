@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Fission 0.7 - a free, Fusion-360-styled CAD app on the OpenCascade kernel (cadquery-ocp).
+"""Fission 0.8 - a free, Fusion-360-styled CAD app on the OpenCascade kernel (cadquery-ocp).
 
 Sketch (S) on the ground, the front / right origin planes or any flat face. Inside the sketch: Line (L), Rectangle (R),
 Circle (C), arcs, polygons, ellipses, slots, splines, conics, text, Dimension (D), Trim (T), Offset (O), Project (P),
