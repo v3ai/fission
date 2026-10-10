@@ -90,8 +90,7 @@ jobs:
         run: |
           APPIMAGE_EXTRACT_AND_RUN=1 LIBGL_ALWAYS_SOFTWARE=1 timeout 600 \
             xvfb-run -a -s "-screen 0 1920x1080x24" "dist/Fission-$VERSION-x86_64.AppImage" --selftest selftest.txt || true
-          cat selftest.txt 2>/dev/null || true
-          grep -q "SELFTEST OK" selftest.txt
+          if grep -q "SELFTEST OK" selftest.txt 2>/dev/null; then cat selftest.txt; else echo "::error::self-test failed%0A$(awk '{printf "%s%%0A", $0}' selftest.txt 2>/dev/null)"; exit 1; fi
       - uses: actions/upload-artifact@v4
         with:
           name: linux
@@ -140,15 +139,27 @@ jobs:
       - uses: actions/download-artifact@v4
         with:
           name: windows
+      # CI machines have no GPU driver, only Microsoft's OpenGL 1.1 - too old for Qt's GL widget. Real PCs have a
+      # driver; here the TEST copies get Mesa's software OpenGL next to Fission.exe (the published files don't).
+      - name: Software OpenGL (Mesa)
+        shell: pwsh
+        run: |
+          Invoke-WebRequest "https://github.com/pal1000/mesa-dist-win/releases/download/26.2.3/mesa3d-26.2.3-release-msvc.7z" -OutFile mesa.7z
+          7z e -y -omesa mesa.7z x64/opengl32.dll x64/libgallium_wgl.dll
+          "GALLIUM_DRIVER=llvmpipe" >> $env:GITHUB_ENV
       - name: Self-test (portable build)
         shell: pwsh
         run: |
+          function Test-Fission($exe, $st) {
+            Copy-Item mesa\*.dll (Split-Path $exe)
+            $p = Start-Process -FilePath $exe -ArgumentList "--selftest", "`"$st`"" -Wait -PassThru
+            $ok = $p.ExitCode -eq 0 -and (Test-Path $st) -and (Select-String -Path $st -Pattern "SELFTEST OK" -Quiet)
+            if (Test-Path $st) { if ($ok) { Get-Content $st } else { "::error::" + ((Get-Content $st) -join '%0A') } }
+            if (-not $ok) { throw "self-test failed (exit $($p.ExitCode))" }
+          }
           $zip = Get-ChildItem *-portable.zip | Select-Object -First 1
           Expand-Archive $zip.FullName -DestinationPath app
-          $st = Join-Path $PWD "selftest.txt"
-          $p = Start-Process -FilePath "app\Fission\Fission.exe" -ArgumentList "--selftest", "`"$st`"" -Wait -PassThru
-          if (Test-Path $st) { Get-Content $st }
-          if ($p.ExitCode -ne 0 -or -not (Select-String -Path $st -Pattern "SELFTEST OK" -Quiet)) { throw "self-test failed (exit $($p.ExitCode))" }
+          Test-Fission (Resolve-Path "app\Fission\Fission.exe").Path (Join-Path $PWD "selftest.txt")
       - name: Installer installs silently
         shell: pwsh
         run: |
@@ -157,10 +168,12 @@ jobs:
           if ($p.ExitCode -ne 0) { throw "installer failed (exit $($p.ExitCode))" }
           $exe = Join-Path $env:LOCALAPPDATA "Programs\Fission\Fission.exe"
           if (-not (Test-Path $exe)) { throw "installer didn't put Fission.exe in $exe" }
+          Copy-Item mesa\*.dll (Split-Path $exe)
           $st = Join-Path $PWD "selftest-installed.txt"
           $p = Start-Process -FilePath $exe -ArgumentList "--selftest", "`"$st`"" -Wait -PassThru
-          if (Test-Path $st) { Get-Content $st }
-          if ($p.ExitCode -ne 0) { throw "installed copy failed its self-test (exit $($p.ExitCode))" }
+          $ok = $p.ExitCode -eq 0 -and (Test-Path $st) -and (Select-String -Path $st -Pattern "SELFTEST OK" -Quiet)
+          if (Test-Path $st) { if ($ok) { Get-Content $st } else { "::error::" + ((Get-Content $st) -join '%0A') } }
+          if (-not $ok) { throw "installed copy failed its self-test (exit $($p.ExitCode))" }
 
   test-macos:
     needs: [version, cross]
@@ -174,8 +187,7 @@ jobs:
           ditto -x -k Fission-*-macOS-arm64.zip arm64
           codesign --verify --deep --strict arm64/Fission.app
           arm64/Fission.app/Contents/MacOS/Fission -- --selftest "$PWD/selftest-arm64.txt" || true
-          cat selftest-arm64.txt 2>/dev/null || true
-          grep -q "SELFTEST OK" selftest-arm64.txt
+          if grep -q "SELFTEST OK" selftest-arm64.txt 2>/dev/null; then cat selftest-arm64.txt; else echo "::error::self-test failed%0A$(awk '{printf "%s%%0A", $0}' selftest-arm64.txt 2>/dev/null)"; exit 1; fi
       - name: Self-test (Intel, under Rosetta)
         run: |
           ditto -x -k Fission-*-macOS-x86_64.zip x86_64
@@ -187,8 +199,7 @@ jobs:
             echo "::warning::Rosetta isn't available on this runner - only checked the Intel build's signature"; exit 0
           fi
           arch -x86_64 x86_64/Fission.app/Contents/MacOS/Fission -- --selftest "$PWD/selftest-x86_64.txt" || true
-          cat selftest-x86_64.txt 2>/dev/null || true
-          grep -q "SELFTEST OK" selftest-x86_64.txt
+          if grep -q "SELFTEST OK" selftest-x86_64.txt 2>/dev/null; then cat selftest-x86_64.txt; else echo "::error::self-test failed%0A$(awk '{printf "%s%%0A", $0}' selftest-x86_64.txt 2>/dev/null)"; exit 1; fi
 
   release:
     needs: [version, linux, test-windows, test-macos]
